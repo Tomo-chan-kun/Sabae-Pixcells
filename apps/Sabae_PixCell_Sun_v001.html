@@ -1,0 +1,218 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#10141b">
+<title>Sabae PixCell Sun v001</title>
+<style>
+:root{--bg:#0a0d12;--panel:#121821;--panel2:#18212d;--line:#2b3747;--text:#f4f7fb;--muted:#9facbd;--sun:#ffb330;--good:#48d383;--warn:#ffca58;--bad:#ff6673}
+*{box-sizing:border-box}html,body{margin:0;background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,"Segoe UI",sans-serif}
+header{position:sticky;top:0;z-index:20;padding:12px 14px;background:rgba(10,13,18,.95);border-bottom:1px solid var(--line);backdrop-filter:blur(10px)}
+.brand{display:flex;gap:9px;align-items:baseline;flex-wrap:wrap}.brand b{font-size:20px}.brand .name{color:var(--sun);font-weight:900}.sub{font-size:12px;color:var(--muted)}
+main{max-width:1250px;margin:auto;padding:12px;display:grid;gap:12px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:12px}.card h2{font-size:14px;margin:0 0 10px}
+.grid2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.grid3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}.grid5{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:8px}
+label{font-size:12px;color:var(--muted);display:block}input,select{width:100%;margin-top:5px;padding:9px 10px;border:1px solid var(--line);border-radius:9px;background:#0d1219;color:var(--text)}
+button{border:1px solid var(--line);background:var(--panel2);color:var(--text);border-radius:10px;padding:10px 12px;font-weight:750}button.primary{background:var(--sun);color:#201707;border-color:transparent}button.danger{background:#38181d;color:#ffd7db}.row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.dot{width:10px;height:10px;border-radius:50%;background:#748093;display:inline-block}.dot.good{background:var(--good)}.dot.bad{background:var(--bad)}
+.metric{background:#0d1219;border:1px solid var(--line);border-radius:10px;padding:9px}.metric b{font-size:20px;display:block}.metric span{font-size:11px;color:var(--muted)}
+#mapWrap{height:min(57vh,650px);min-height:360px}canvas{display:block;width:100%;height:100%;background:#090d13;border:1px solid var(--line);border-radius:12px}
+.tableWrap{overflow:auto;max-height:390px;border:1px solid var(--line);border-radius:10px}table{width:100%;border-collapse:collapse;font-size:12px}th,td{padding:8px;border-bottom:1px solid #222d3a;text-align:left;white-space:nowrap}th{position:sticky;top:0;background:#111823;z-index:2}tr:hover{background:#17202c}.muted{color:var(--muted)}.good{color:var(--good)}.warn{color:var(--warn)}.bad{color:var(--bad)}.mono{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}.small{font-size:11px;color:var(--muted)}
+details{border:1px solid var(--line);border-radius:10px;padding:8px;background:#0d1219}summary{cursor:pointer;font-weight:700}
+@media(max-width:820px){.grid2,.grid3,.grid5{grid-template-columns:1fr 1fr}.grid5 .metric:last-child{grid-column:1/-1}#mapWrap{height:48vh;min-height:320px}}
+@media(max-width:520px){.grid2,.grid3,.grid5{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<header>
+  <div class="brand"><b>Sabae PixCell <span class="name">Sun</span></b><span>v001</span></div>
+  <div class="sub">制御用 / 最大5000端末管理</div>
+</header>
+<main>
+  <section class="card">
+    <h2>Sun Server 接続</h2>
+    <div class="grid2">
+      <label>WebSocket URL<input id="wsUrl" value="ws://127.0.0.1:8765/sun" autocomplete="off"></label>
+      <label>端末タイムアウト<select id="timeoutSec"><option value="2">2秒</option><option value="3" selected>3秒</option><option value="5">5秒</option><option value="10">10秒</option></select></label>
+    </div>
+    <div class="row" style="margin-top:10px">
+      <button id="connectBtn" class="primary">接続</button><button id="disconnectBtn" class="danger">切断</button>
+      <span id="dot" class="dot"></span><span id="status" class="small">未接続</span>
+    </div>
+  </section>
+
+  <section class="grid5">
+    <div class="metric"><b id="tracked">0</b><span>管理端末 / 5000</span></div>
+    <div class="metric"><b id="online">0</b><span>接続中</span></div>
+    <div class="metric"><b id="active">0</b><span>受信正常</span></div>
+    <div class="metric"><b id="stale">0</b><span>受信停滞</span></div>
+    <div class="metric"><b id="rxRate">0</b><span>端末データ / 秒</span></div>
+  </section>
+
+  <section class="card">
+    <h2>測位設定</h2>
+    <div class="grid3">
+      <label>正三角形 一辺<input id="side" type="number" min=".5" max="100" step=".1" value="3.0"></label>
+      <label>1m基準 RSSI<input id="txPower" type="number" min="-100" max="-20" value="-59"></label>
+      <label>経路損失指数 n<input id="pathLoss" type="number" min="1" max="6" step=".1" value="2.2"></label>
+    </div>
+    <details style="margin-top:10px">
+      <summary>中心キャリブレーション</summary>
+      <div class="small" style="margin:8px 0">正三角形の一辺設定を使用し、中心に置いた実端末のRSSI平均から1m基準RSSIを推定します。開始は手動です。</div>
+      <div class="row"><select id="calDevice" style="max-width:280px"><option value="">端末を選択</option></select><button id="calBtn">10秒キャリブレーション開始</button><span id="calState" class="small"></span></div>
+    </details>
+  </section>
+
+  <section class="card">
+    <h2>端末位置</h2>
+    <div id="mapWrap"><canvas id="map"></canvas></div>
+    <div class="small">赤=A / 青=B / 緑=C。Vulcanの positionHint がある端末は検証用ヒント位置、実端末はRSSIから推定位置を表示します。</div>
+  </section>
+
+  <section class="card">
+    <h2>一括制御</h2>
+    <div class="row">
+      <button data-color="#ff0000">赤</button><button data-color="#00ff00">緑</button><button data-color="#0066ff">青</button>
+      <button data-color="#ffffff">白</button><button data-color="#000000">消灯</button>
+      <button id="syncFlash" class="primary">同期フラッシュ</button>
+    </div>
+    <div class="small" style="margin-top:7px">全端末へのコマンドはサーバー側で1接続ごとに配信します。Vulcan多重化接続でも5000端末分を5000回送信しません。</div>
+  </section>
+
+  <section class="card">
+    <h2>端末一覧</h2>
+    <div class="grid2">
+      <label>検索<input id="search" placeholder="端末ID / source"></label>
+      <label>表示<select id="filter"><option value="all">すべて</option><option value="online">接続中</option><option value="active">受信正常</option><option value="stale">受信停滞</option></select></label>
+    </div>
+    <div class="tableWrap" style="margin-top:10px">
+      <table><thead><tr><th>端末ID</th><th>状態</th><th>A</th><th>B</th><th>C</th><th>X</th><th>Y</th><th>最終受信</th><th>source</th></tr></thead><tbody id="tbody"></tbody></table>
+    </div>
+    <div class="small" id="tableNote" style="margin-top:6px"></div>
+  </section>
+</main>
+
+<script>
+(()=>{
+'use strict';
+const MAX_DEVICES=5000;
+const $=id=>document.getElementById(id);
+const E={wsUrl:$('wsUrl'),timeoutSec:$('timeoutSec'),connectBtn:$('connectBtn'),disconnectBtn:$('disconnectBtn'),dot:$('dot'),status:$('status'),
+tracked:$('tracked'),online:$('online'),active:$('active'),stale:$('stale'),rxRate:$('rxRate'),side:$('side'),txPower:$('txPower'),pathLoss:$('pathLoss'),
+map:$('map'),tbody:$('tbody'),search:$('search'),filter:$('filter'),tableNote:$('tableNote'),calDevice:$('calDevice'),calBtn:$('calBtn'),calState:$('calState'),syncFlash:$('syncFlash')};
+let ws=null, devices=new Map(), serverStats={}, lastDraw=0, cal=null;
+
+function connState(ok,text){E.dot.className='dot'+(ok===true?' good':ok===false?' bad':'');E.status.textContent=text}
+function connect(){
+  try{ if(ws) ws.close(); }catch(_){}
+  const u=E.wsUrl.value.trim(); if(!u){connState(false,'URL未入力');return}
+  connState(null,'接続中…');
+  try{
+    ws=new WebSocket(u);
+    ws.onopen=()=>{connState(true,'Sun Server 接続済み'); ws.send(JSON.stringify({type:'sun-hello',protocol:'sabae-pixcell/1',app:'Sun',version:'001'}));};
+    ws.onerror=()=>connState(false,'接続エラー');
+    ws.onclose=()=>connState(null,'未接続');
+    ws.onmessage=e=>onMessage(e.data);
+  }catch(err){connState(false,String(err))}
+}
+function disconnect(){try{ws&&ws.close()}catch(_){} ws=null;connState(null,'未接続')}
+function onMessage(raw){
+  let m;try{m=JSON.parse(raw)}catch(_){return}
+  if(m.type==='device-snapshot' && Array.isArray(m.devices)){
+    devices.clear();
+    for(const d of m.devices){ if(d&&d.deviceId) devices.set(d.deviceId,d); }
+    serverStats=m.stats||serverStats;
+    refresh();
+  }else if(m.type==='server-stats'){
+    serverStats=m.stats||m; refreshMetrics();
+  }
+}
+function ageSec(d){return Math.max(0,(Date.now()-(d.lastSeenMs||0))/1000)}
+function cls(d){
+  if(!d.connected)return 'offline';
+  const age=ageSec(d), t=Number(E.timeoutSec.value)||3;
+  if(age<=t)return 'active';
+  return 'stale';
+}
+function dist(rssi){const tx=Number(E.txPower.value)||-59,n=Number(E.pathLoss.value)||2.2;return Math.pow(10,(tx-rssi)/(10*n))}
+function estimate(d){
+  if(d.positionHint && Number.isFinite(+d.positionHint.x)&&Number.isFinite(+d.positionHint.y)) return {x:+d.positionHint.x,y:+d.positionHint.y,hint:true};
+  if(!d.rssi||![d.rssi.A,d.rssi.B,d.rssi.C].every(Number.isFinite))return null;
+  const s=Math.max(.5,Number(E.side.value)||3),h=s*Math.sqrt(3)/2,cx=s/2,cy=h;
+  const da=dist(d.rssi.A),db=dist(d.rssi.B),dc=dist(d.rssi.C);
+  let x=(da*da-db*db+s*s)/(2*s);
+  let y=(da*da-dc*dc+cx*cx+cy*cy-2*cx*x)/(2*cy);
+  if(!Number.isFinite(x)||!Number.isFinite(y))return null;
+  return {x,y,hint:false};
+}
+function refresh(){refreshMetrics();refreshTable();refreshCalList();draw();}
+function refreshMetrics(){
+  let on=0,ac=0,st=0; for(const d of devices.values()){const c=cls(d);if(d.connected)on++;if(c==='active')ac++;if(c==='stale')st++}
+  E.tracked.textContent=devices.size;E.online.textContent=on;E.active.textContent=ac;E.stale.textContent=st;E.rxRate.textContent=serverStats.deviceDataPerSec??0;
+}
+function refreshTable(){
+  const q=E.search.value.trim().toLowerCase(),f=E.filter.value, rows=[];
+  for(const d of devices.values()){
+    const c=cls(d); if(q&&!((d.deviceId||'').toLowerCase().includes(q)||(d.source||'').toLowerCase().includes(q)))continue;
+    if(f==='online'&&!d.connected)continue;if(f==='active'&&c!=='active')continue;if(f==='stale'&&c!=='stale')continue;
+    rows.push(d);
+  }
+  rows.sort((a,b)=>(b.lastSeenMs||0)-(a.lastSeenMs||0));
+  const shown=rows.slice(0,250);
+  E.tbody.innerHTML=shown.map(d=>{
+    const c=cls(d),p=estimate(d), age=ageSec(d);
+    const state=c==='active'?'<span class="good">正常</span>':c==='stale'?'<span class="warn">停滞</span>':'<span class="bad">切断</span>';
+    return `<tr><td class="mono">${esc(d.deviceId)}</td><td>${state}</td><td>${d.rssi?.A??'—'}</td><td>${d.rssi?.B??'—'}</td><td>${d.rssi?.C??'—'}</td><td>${p?p.x.toFixed(2):'—'}</td><td>${p?p.y.toFixed(2):'—'}</td><td>${age.toFixed(1)}s前</td><td>${esc(d.source||'—')}</td></tr>`;
+  }).join('');
+  E.tableNote.textContent=`${rows.length}台中 ${shown.length}台を表示（描画負荷を抑えるため一覧は最大250行）`;
+}
+function esc(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
+function refreshCalList(){
+  const cur=E.calDevice.value; const ids=[...devices.values()].filter(d=>d.connected).sort((a,b)=>a.deviceId.localeCompare(b.deviceId)).slice(0,5000);
+  E.calDevice.innerHTML='<option value="">端末を選択</option>'+ids.map(d=>`<option>${esc(d.deviceId)}</option>`).join('');
+  if(ids.some(d=>d.deviceId===cur))E.calDevice.value=cur;
+}
+function resize(){const r=E.map.getBoundingClientRect(),dpr=Math.min(devicePixelRatio||1,2);E.map.width=Math.max(1,r.width*dpr);E.map.height=Math.max(1,r.height*dpr);draw()}
+function draw(){
+  const now=performance.now(); if(now-lastDraw<80)return; lastDraw=now;
+  const c=E.map,ctx=c.getContext('2d');if(!ctx||!c.width)return;ctx.clearRect(0,0,c.width,c.height);
+  const s=Math.max(.5,Number(E.side.value)||3),h=s*Math.sqrt(3)/2,pad=42*(c.width/c.getBoundingClientRect().width);
+  const sc=Math.min((c.width-2*pad)/s,(c.height-2*pad)/h),ox=(c.width-s*sc)/2,oy=(c.height-h*sc)/2;
+  const P=(x,y)=>({x:ox+x*sc,y:c.height-(oy+y*sc)});
+  const A=P(0,0),B=P(s,0),C=P(s/2,h);
+  ctx.fillStyle='#0e151f';ctx.strokeStyle='#4a586d';ctx.lineWidth=Math.max(2,c.width/500);ctx.beginPath();ctx.moveTo(A.x,A.y);ctx.lineTo(B.x,B.y);ctx.lineTo(C.x,C.y);ctx.closePath();ctx.fill();ctx.stroke();
+  [['A','#ff5363',A],['B','#4f8cff',B],['C','#52dd83',C]].forEach(([n,col,p])=>{ctx.fillStyle=col;ctx.beginPath();ctx.arc(p.x,p.y,8*(c.width/c.getBoundingClientRect().width),0,Math.PI*2);ctx.fill();ctx.fillStyle='#fff';ctx.font=`${12*(c.width/c.getBoundingClientRect().width)}px system-ui`;ctx.fillText(n,p.x+10,p.y-8)});
+  let n=0;for(const d of devices.values()){if(n++>=MAX_DEVICES)break;const p=estimate(d);if(!p)continue;const q=P(p.x,p.y),state=cls(d);ctx.globalAlpha=state==='active'?.9:state==='stale'?.45:.18;ctx.fillStyle=p.hint?'#ff9e43':'#f3f6fb';ctx.beginPath();ctx.arc(q.x,q.y,2.7*(c.width/c.getBoundingClientRect().width),0,Math.PI*2);ctx.fill()}ctx.globalAlpha=1;
+}
+function sendCommand(obj){if(!ws||ws.readyState!==WebSocket.OPEN){connState(false,'Sun Server未接続');return}ws.send(JSON.stringify({type:'sun-command',protocol:'sabae-pixcell/1',target:'all',...obj,issuedAtMs:Date.now()}))}
+document.querySelectorAll('[data-color]').forEach(b=>b.onclick=()=>sendCommand({command:'color',color:b.dataset.color}));
+E.syncFlash.onclick=()=>{sendCommand({command:'flash',color:'#ffffff',durationMs:200,syncId:'SYNC-'+Date.now()})};
+E.connectBtn.onclick=connect;E.disconnectBtn.onclick=disconnect;E.search.oninput=refreshTable;E.filter.onchange=refreshTable;E.timeoutSec.onchange=refresh;[E.side,E.txPower,E.pathLoss].forEach(x=>x.oninput=()=>{refreshTable();draw()});
+E.calBtn.onclick=()=>{
+  const id=E.calDevice.value;if(!id){E.calState.textContent='端末を選択してください';return}
+  cal={id,start:Date.now(),samples:[]};E.calState.textContent='測定中…端末を正三角形の中心に固定';
+};
+setInterval(()=>{
+  refreshMetrics();refreshTable();draw();
+  if(cal){
+    const d=devices.get(cal.id);if(d?.rssi && [d.rssi.A,d.rssi.B,d.rssi.C].every(Number.isFinite))cal.samples.push((d.rssi.A+d.rssi.B+d.rssi.C)/3);
+    const elapsed=Date.now()-cal.start;
+    if(elapsed>=10000){
+      if(cal.samples.length){
+        const avg=cal.samples.reduce((a,b)=>a+b,0)/cal.samples.length;
+        const centerDist=(Math.max(.5,Number(E.side.value)||3))/Math.sqrt(3);
+        const n=Number(E.pathLoss.value)||2.2;
+        const tx=avg+10*n*Math.log10(centerDist);
+        E.txPower.value=tx.toFixed(1);E.calState.textContent=`完了: ${cal.samples.length}点 / 1m基準RSSI ${tx.toFixed(1)} dBm`;
+      }else E.calState.textContent='有効なRSSIを取得できませんでした';
+      cal=null;refreshTable();draw();
+    }else E.calState.textContent=`測定中… ${(elapsed/1000).toFixed(1)} / 10.0 秒`;
+  }
+},500);
+window.addEventListener('resize',resize);window.addEventListener('beforeunload',()=>{try{ws&&ws.close()}catch(_){}});
+requestAnimationFrame(resize);
+})();
+</script>
+</body>
+</html>
