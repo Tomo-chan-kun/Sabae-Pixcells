@@ -1,0 +1,58 @@
+name: Temporary Earth APK Build
+on:
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install Android 35 SDK
+        shell: bash
+        run: |
+          yes | sdkmanager --licenses >/dev/null 2>&1 || true
+          sdkmanager "platforms;android-35" "build-tools;35.0.0" "platform-tools"
+
+      - name: Set up Gradle 8.7
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.7'
+
+      - name: Reconstruct Earth project
+        shell: bash
+        run: |
+          cat tmp-earth-apk/parts/00 tmp-earth-apk/parts/01 tmp-earth-apk/parts/02 > /tmp/earth_project.tar.gz.b64
+          base64 -d /tmp/earth_project.tar.gz.b64 > /tmp/earth_project.tar.gz
+          tar -xzf /tmp/earth_project.tar.gz
+          test -f Sabae_Pixcells_Earth_v001_LATEST/settings.gradle
+          test -f Sabae_Pixcells_Earth_v001_LATEST/app/build.gradle
+
+      - name: Build debug APK
+        working-directory: Sabae_Pixcells_Earth_v001_LATEST
+        run: gradle --no-daemon --stacktrace assembleDebug
+
+      - name: Prepare APK
+        shell: bash
+        run: |
+          cp Sabae_Pixcells_Earth_v001_LATEST/app/build/outputs/apk/debug/app-debug.apk Sabae_Pixcells_Earth_v001.apk
+          ls -lh Sabae_Pixcells_Earth_v001.apk
+
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Sabae_Pixcells_Earth_v001_APK
+          path: Sabae_Pixcells_Earth_v001.apk
+          if-no-files-found: error
+          retention-days: 1
