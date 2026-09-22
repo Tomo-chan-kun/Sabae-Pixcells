@@ -34,30 +34,9 @@ jobs:
       - name: Reconstruct Earth project
         shell: bash
         run: |
-          python3 - <<'PY'
-          import base64, gzip, pathlib, string
-          parts=[pathlib.Path(f"tmp-earth-apk/parts/{n}").read_text().strip() for n in ("00","01","02")]
-          s="".join(parts)
-          alphabet="ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/"
-          positions=[len(parts[0]), len(parts[0])+len(parts[1])]
-          candidates=[s]
-          for pos in positions:
-              for ch in alphabet:
-                  candidates.append(s[:pos]+ch+s[pos:])
-          ok=None
-          for c in candidates:
-              try:
-                  raw=base64.b64decode(c, validate=True)
-                  gzip.decompress(raw)
-                  ok=raw
-                  break
-              except Exception:
-                  pass
-          if ok is None:
-              raise SystemExit("Could not repair base64 project archive")
-          pathlib.Path("/tmp/earth_project.tar.gz").write_bytes(ok)
-          print("Recovered archive bytes:", len(ok))
-          PY
+          cat tmp-earth-apk/parts2/00 tmp-earth-apk/parts2/01 tmp-earth-apk/parts2/02 tmp-earth-apk/parts2/03 > /tmp/earth_project.tar.gz.b64
+          base64 -d /tmp/earth_project.tar.gz.b64 > /tmp/earth_project.tar.gz
+          gzip -t /tmp/earth_project.tar.gz
           tar -xzf /tmp/earth_project.tar.gz
           test -f Sabae_Pixcells_Earth_v001_LATEST/settings.gradle
           test -f Sabae_Pixcells_Earth_v001_LATEST/app/build.gradle
