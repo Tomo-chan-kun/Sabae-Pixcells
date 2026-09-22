@@ -49,7 +49,7 @@ jobs:
           p=Path("Sabae_Pixcells_Earth_v001_LATEST/app/src/main/java/jp/sabaepixcells/earth/Effects.java")
           s=p.read_text()
           old="double dist=Math.hypot(xy[0]-c[0],xy[1]-c[1]);"
-          new="double sampleX=xy[0]*Math.sin(Math.toRadians(10.0)); // MOON-compatible 10 deg ground pre-warp (east-west depth)\\n                double dist=Math.hypot(sampleX-c[0],xy[1]-c[1]);"
+          new="double sampleX=xy[0]*Math.sin(Math.toRadians(10.0)); double dist=Math.hypot(sampleX-c[0],xy[1]-c[1]);"
           if old not in s:
               raise SystemExit("fireworks distance expression not found")
           p.write_text(s.replace(old,new,1))
