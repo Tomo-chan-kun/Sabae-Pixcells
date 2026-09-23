@@ -41,29 +41,13 @@ jobs:
           test -f Sabae_Pixcells_Earth_v001_LATEST/settings.gradle
           test -f Sabae_Pixcells_Earth_v001_LATEST/app/build.gradle
 
-      - name: Apply corrected Moon-style 10 degree fireworks pre-warp
+      - name: Apply updated Earth effects
         shell: bash
         run: |
-          python3 - <<'PY'
-          from pathlib import Path
-          import re
-          p=Path("Sabae_Pixcells_Earth_v001_LATEST/app/src/main/java/jp/sabaepixcells/earth/Effects.java")
-          s=p.read_text()
-          pattern=r'''\s*(?:double sampleX=[^;]+;\s*)?double dist=Math\.hypot\([^;]+;\s*double radius=4\.0\+age\*17\.5, width=1\.6\+age\*0\.9;'''
-          new='''\n                double sn=Math.sin(Math.toRadians(10.0));
-                double q=0.80;
-                double sampleX=xy[0]*sn;
-                double sampleY=xy[1];
-                double centerX=c[0]*q*sn;
-                double centerY=c[1]*q*sn;
-                double dist=Math.hypot(sampleX-centerX,sampleY-centerY);
-                double radius=(4.0+age*17.5)*q*sn;
-                double width=Math.max(0.85,(1.6+age*0.9)*q*sn*2.2);'''
-          s2,n=re.subn(pattern,new,s,count=1)
-          if n!=1:
-              raise SystemExit(f"fireworks fragment replacement count={n}")
-          p.write_text(s2)
-          PY
+          cat tmp-earth-apk/effects_parts/0 tmp-earth-apk/effects_parts/1 tmp-earth-apk/effects_parts/2 > /tmp/Effects.java.b64
+          base64 -d /tmp/Effects.java.b64 > Sabae_Pixcells_Earth_v001_LATEST/app/src/main/java/jp/sabaepixcells/earth/Effects.java
+          grep -q "MOON型" Sabae_Pixcells_Earth_v001_LATEST/app/src/main/java/jp/sabaepixcells/earth/Effects.java
+          grep -q "発生点を周期ごとに変える" Sabae_Pixcells_Earth_v001_LATEST/app/src/main/java/jp/sabaepixcells/earth/Effects.java
 
       - name: Build debug APK
         working-directory: Sabae_Pixcells_Earth_v001_LATEST
