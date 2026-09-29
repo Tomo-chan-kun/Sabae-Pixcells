@@ -1,18 +1,12 @@
 # Sabae Pixcell
 
-参加者のスマートフォンを「1つの画素・1つの音源」として使い、会場全体で光と音の演出をつくる参加型システムです。
+参加者のスマートフォンを一つひとつの「光の画素」として連携させ、会場全体で大規模な光と音の演出をつくる参加型システムです。
 
-## Apps
+## 提出用アプリ
 
-- **Sabae Pixcell Sun** — 制御用（current: v001）
-- **Sabae Pixcell Earth** — 発光用（current: v001）
-- **Sabae Pixcell Moon** — シミュレーター（current: v317）
-- **Sabae Pixcell Vulcan** — 仮想端末エミュレーター（current: v002）
+- **ホストアプリ** — 演出の管理・配信
+- **クライアントアプリ** — GPS位置に応じた画面発光
+- **演出シミュレーター** — 演出の事前確認
+- **仮想クライアント** — 多数端末接続の再現・検証
 
-HTMLアプリは `apps/` に保存します。
-
-## Current version set
-
-`Moon v317 / Sun v001 / Earth v001 / Vulcan v002`
-
-Development repository. Currently private.
+GitHub Pages のトップページから4つのアプリを確認できます。
