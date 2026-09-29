@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#08111d">
+<title>Sabae Pixcell</title>
+<style>
+:root{--bg:#08111d;--panel:#111a2b;--line:#2a3b5d;--text:#edf3ff;--muted:#a9b8d3;--accent:#6ec8ff}
+*{box-sizing:border-box}
+body{margin:0;min-height:100vh;font-family:system-ui,-apple-system,"Segoe UI",sans-serif;background:radial-gradient(circle at 50% -20%,#17375b 0,#08111d 45%,#050a11 100%);color:var(--text)}
+main{max-width:980px;margin:auto;padding:56px 20px 72px}
+h1{font-size:clamp(38px,8vw,72px);margin:0 0 12px;letter-spacing:-.04em}
+.lead{font-size:17px;line-height:1.8;color:#d8e7fb;max-width:780px;margin:0 0 36px}
+.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}
+.card{display:block;text-decoration:none;color:inherit;background:rgba(17,26,43,.92);border:1px solid var(--line);border-radius:20px;padding:22px;min-height:170px;transition:.18s transform,.18s border-color,.18s background}
+.card:hover{transform:translateY(-2px);border-color:#5aaeea;background:#15243b}
+.num{font-size:12px;letter-spacing:.12em;color:var(--accent);font-weight:800}
+h2{font-size:24px;margin:10px 0 8px}
+p{margin:0;color:var(--muted);line-height:1.65}
+.open{margin-top:18px;font-weight:800;color:#fff}
+.note{margin-top:28px;padding:16px 18px;border:1px solid var(--line);border-radius:16px;color:var(--muted);line-height:1.7;background:rgba(17,26,43,.55)}
+@media(max-width:720px){main{padding-top:34px}.grid{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<main>
+<h1>Sabae Pixcell</h1>
+<p class="lead">参加者のスマートフォンを一つひとつの「光の画素」として連携させ、会場全体で大規模な光と音の演出をつくる参加型システムです。西山公園の芝生広場での利用を想定しています。</p>
+<div class="grid">
+<a class="card" href="./host/"><div class="num">01</div><h2>ホストアプリ</h2><p>演出の選択、開始・停止、タイミング、接続状況などを管理する制御側アプリです。</p><div class="open">開く →</div></a>
+<a class="card" href="./client/"><div class="num">02</div><h2>クライアントアプリ</h2><p>参加者の現在位置に応じて、スマートフォン画面を光らせるクライアント側アプリのWebデモです。</p><div class="open">開く →</div></a>
+<a class="card" href="./simulator/"><div class="num">03</div><h2>演出シミュレーター</h2><p>人数・配置・視点などを変えながら、会場での光の演出を事前確認するシミュレーターです。</p><div class="open">開く →</div></a>
+<a class="card" href="./virtual-client/"><div class="num">04</div><h2>仮想クライアント</h2><p>多数の端末接続を仮想的に再現し、ホスト側の動作や負荷を検証するためのツールです。</p><div class="open">開く →</div></a>
+</div>
+<div class="note">Sabae Pixcell を構成する4つのアプリを、1作品として確認できる提出用ページです。</div>
+</main>
+</body>
+</html>
