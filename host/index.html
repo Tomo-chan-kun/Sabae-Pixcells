@@ -20,44 +20,44 @@ function esc(s){return s.replace(/[.*+?^$()|[\]{}\\]/g,'\\$&')}
 function clean(doc){
   if(!doc||!doc.body)return;
   doc.title=TARGET_TITLE;
+
+  // バージョン番号だけの表示や、開発版の更新・改修メモは要素ごと非表示。
+  for(const el of doc.querySelectorAll('body *')){
+    if(/^(SCRIPT|STYLE|NOSCRIPT|TEXTAREA)$/i.test(el.tagName))continue;
+    if(el.children.length)continue;
+    const t=(el.textContent||'').trim();
+    if(/^v\d+(?:\.\d+)*$/i.test(t) ||
+       /(?:バージョン情報|更新情報|更新履歴|変更履歴|version information|release notes?|changelog)/i.test(t) ||
+       (/\bv\d+(?:\.\d+)*\b/i.test(t) && /(?:映像完成版|改修|revision|build)/i.test(t))){
+      el.style.display='none';
+    }
+  }
+
+  // アプリの提出用名称へ置換。値が変わるときだけ書き換え、DOM監視ループを起こさない。
   const walker=doc.createTreeWalker(doc.body,NodeFilter.SHOW_TEXT);
   let n;
   while((n=walker.nextNode())){
     const p=n.parentElement;
     if(!p||/^(SCRIPT|STYLE|NOSCRIPT|TEXTAREA)$/i.test(p.tagName))continue;
-    let s=n.nodeValue||'';
+    const before=n.nodeValue||'';
+    let after=before;
     for(const a of ALIASES){
-      s=s.replace(new RegExp(esc(a)+'(?:\\s+v\\d+(?:\\.\\d+)*)?','gi'),TARGET_TITLE);
+      after=after.replace(new RegExp(esc(a)+'(?:\\s+v\\d+(?:\\.\\d+)*)?','gi'),TARGET_TITLE);
     }
-    s=s.replace(/\bv\d+(?:\.\d+)*\b/gi,'');
-    s=s.replace(/current\s*:\s*/gi,'');
-    n.nodeValue=s.replace(/\s{2,}/g,' ');
-  }
-  for(const el of doc.querySelectorAll('body *')){
-    if(/^(SCRIPT|STYLE|NOSCRIPT|TEXTAREA)$/i.test(el.tagName))continue;
-    const t=(el.textContent||'').trim();
-    const k=((el.id||'')+' '+(typeof el.className==='string'?el.className:'')).toLowerCase();
-    if(/^(更新情報|更新履歴|変更履歴|バージョン情報|version information|release notes?|changelog)\b/i.test(t)){
-      el.style.display='none';
-    }
-    if(/(?:version|changelog|release[-_ ]?notes?|update[-_ ]?info)/i.test(k)&&/(?:v\d|version|バージョン|更新|release|変更履歴)/i.test(t)){
-      el.style.display='none';
-    }
+    after=after.replace(/\bv\d+(?:\.\d+)*\b/gi,'');
+    after=after.replace(/current\s*:\s*/gi,'');
+    after=after.replace(/[ \t]{2,}/g,' ');
+    if(after!==before)n.nodeValue=after;
   }
 }
 function run(){
-  try{
-    const d=app.contentDocument;
-    clean(d);
-    if(!d.__sabaeCleanObserver){
-      const obs=new MutationObserver(()=>clean(d));
-      obs.observe(d.body,{subtree:true,childList:true,characterData:true});
-      d.__sabaeCleanObserver=obs;
-    }
-  }catch(e){}
+  try{clean(app.contentDocument)}catch(e){}
 }
-app.addEventListener('load',run);
-setInterval(run,2500);
+app.addEventListener('load',()=>{
+  run();
+  // 初期描画後に一度だけ再確認。MutationObserverは使わず、アニメーションを阻害しない。
+  setTimeout(run,400);
+});
 </script>
 </body>
 </html>
