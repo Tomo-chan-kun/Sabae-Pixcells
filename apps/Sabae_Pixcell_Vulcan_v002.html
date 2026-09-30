@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
 <meta name="theme-color" content="#111318">
-<title>Sabae PixCell Vulcan v002</title>
+<title>Sabae Pixcell 仮想クライアント</title>
 <style>
 :root{
   --bg:#0b0d10;--panel:#14181f;--panel2:#1b2029;--line:#2a313d;
@@ -63,13 +63,13 @@ pre{
 </head>
 <body>
 <header>
-  <div class="brand"><b>Sabae PixCell <span>Vulcan</span></b><small>v002</small></div>
-  <div class="sub">仮想端末エミュレーター / Virtual Device Emulator</div>
+  <div class="brand"><b>Sabae Pixcell 仮想クライアント</b></div>
+  <div class="sub">多数端末接続の再現・検証</div>
 </header>
 
 <main>
   <section class="card">
-    <h2>1. Sun 接続</h2>
+    <h2>1. ホストアプリ接続</h2>
     <div class="grid">
       <label>WebSocket URL
         <input id="wsUrl" value="ws://192.168.1.100:8765/device" autocomplete="off" autocapitalize="off">
@@ -95,7 +95,7 @@ pre{
     <h2>2. 仮想端末</h2>
     <div class="grid3">
       <label>端末ID 接頭辞
-        <input id="prefix" value="VULCAN">
+        <input id="prefix" value="VIRTUAL">
       </label>
       <label>仮想端末数
         <input id="deviceCount" type="number" min="1" max="5000" value="1">
@@ -292,7 +292,7 @@ function buildDevices(){
   else pts=Array.from({length:n},()=>randomPoint());
 
   devices=pts.map((p,i)=>({
-    id:`${(els.prefix.value||'VULCAN').trim()}-${String(i+1).padStart(3,'0')}`,
+    id:`${(els.prefix.value||'VIRTUAL').trim()}-${String(i+1).padStart(3,'0')}`,
     x:p.x,y:p.y,baseX:p.x,baseY:p.y,phase:(i/n)*Math.PI*2,heading:Math.random()*Math.PI*2
   }));
   if(n===1){ devices[0].x=base.x;devices[0].y=base.y;devices[0].baseX=base.x;devices[0].baseY=base.y; }
@@ -312,7 +312,7 @@ function payloadFor(d){
   const packet={
     type:'pixcell-rssi',
     protocol:'sabae-pixcell/1',
-    source:'vulcan',
+    source:'virtual-client',
     deviceId:d.id,
     seq:++seq,
     measurementId:`${d.id}:${seq}`,
