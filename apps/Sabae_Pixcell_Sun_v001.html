@@ -6,12 +6,80 @@
 <section class="card"><h3>4. 現在状態</h3><div id="state" class="status">—</div><div id="address" class="status" style="margin-top:8px">—</div></section>
 <section class="card"><h3>5. 直近端末（最大100件）</h3><div style="overflow:auto;max-height:360px"><table><thead><tr><th>ID</th><th>source</th><th>状態</th><th>point</th><th>緯度</th><th>経度</th><th>seq</th></tr></thead><tbody id="tbody"></tbody></table></div></section>
 </main><script>
-const $=id=>document.getElementById(id);let ws=null,lastSnap=null,lastRecvPerf=0,geo=null,pointMap=[];
-fetch('/points.json').then(r=>r.json()).then(g=>{geo=g;pointMap=new Array(10001);for(const p of g.points)pointMap[p[0]]={id:p[0],x:p[1],y:p[2],u:p[3]};requestAnimationFrame(drawLoop)}).catch(()=>{geo={diameterEW:74.8384,diameterNS:67.9916};requestAnimationFrame(drawLoop)});
-function connect(){ws=new WebSocket(`ws://${location.hostname}:8765/sun-ui`);ws.onopen=()=>{$('conn').innerHTML='<span class="good">ホスト接続済み</span>';ws.send(JSON.stringify({type:'ui-hello'}))};ws.onclose=()=>{$('conn').innerHTML='<span class="warn">再接続中…</span>';setTimeout(connect,1000)};ws.onmessage=e=>{let m;try{m=JSON.parse(e.data)}catch{return}if(m.type!=='ui-snapshot')return;lastSnap=m;lastRecvPerf=performance.now();render(m)}}function send(o){if(ws&&ws.readyState===1)ws.send(JSON.stringify(o))}
-function render(m){const s=m.stats,t=m.timeline;$('connected').textContent=s.connected;$('recon').textContent=s.reconnecting;$('stale').textContent=s.stale;$('peak').textContent=s.peak;$('known').textContent=s.known;const seg=t.currentSegmentStartSec==null?'—':`${(+t.currentSegmentStartSec).toFixed(1)}～${(+t.currentSegmentEndSec).toFixed(1)}秒`;$('state').textContent=`${t.running?'運転中':'停止'} / ${t.effectName} / ${seg} / revision ${t.configRevision}`;$('address').textContent=`端末接続先: ${m.ips.map(ip=>`ws://${ip}:${m.wsPort}/device`).join(' | ')}`;$('previewCount').textContent=`実接続 ${s.connected}台を反映（位置取得 ${s.preview?.mapped??0}台）`;$('previewEffect').textContent=`演出 ${t.effectName} / ${seg}`;$('tbody').innerHTML=s.devices.map(d=>`<tr><td>${esc(d.device_id)}</td><td>${esc(d.source)}</td><td>${d.connected?'<span class="good">接続</span>':'<span class="warn">非アクティブ</span>'}</td><td>${d.point_id??'—'}</td><td>${d.lat==null?'—':Number(d.lat).toFixed(7)}</td><td>${d.lon==null?'—':Number(d.lon).toFixed(7)}</td><td>${d.seq}</td></tr>`).join('')}
+const $=id=>document.getElementById(id);
+const IS_PUBLIC_DEMO=location.hostname.endsWith('github.io');
+let ws=null,lastSnap=null,lastRecvPerf=0,geo=null,pointMap=[];
+let demoState={running:false,effectId:'wave',effectName:'波（奥→手前）',segmentDurationMs:5000,checkIntervalMs:1000,configRevision:1,timelineStartMs:null};
+
+function makeFallbackPoints(){
+  geo={diameterEW:74.8384,diameterNS:67.9916};
+  pointMap=new Array(10001);
+  const A=geo.diameterEW/2,B=geo.diameterNS/2,ga=Math.PI*(3-Math.sqrt(5));
+  for(let id=1;id<=10000;id++){
+    const rr=Math.sqrt((id-.5)/10000)*.965,th=id*ga;
+    pointMap[id]={id,x:A*rr*Math.cos(th),y:B*rr*Math.sin(th),u:0};
+  }
+}
+function startDrawing(){if(!geo||!pointMap.length)makeFallbackPoints();requestAnimationFrame(drawLoop)}
+if(IS_PUBLIC_DEMO){makeFallbackPoints();startDrawing()}
+else{
+  fetch('/points.json').then(r=>r.json()).then(g=>{
+    geo=g;pointMap=new Array(10001);
+    for(const p of g.points)pointMap[p[0]]={id:p[0],x:p[1],y:p[2],u:p[3]};
+    startDrawing();
+  }).catch(()=>{makeFallbackPoints();startDrawing()});
+}
+
+function effectLabel(id){return id==='wave'?'波（奥→手前）':id==='ripple'?'波紋':id==='fireworks'?'花火':id}
+function demoSnapshot(){
+  const now=Date.now(),dur=Math.max(500,demoState.segmentDurationMs);
+  let startMs=null,endMs=null,startSec=null,endSec=null,phase='stopped';
+  if(demoState.running){
+    if(demoState.timelineStartMs==null)demoState.timelineStartMs=now;
+    const n=Math.max(0,Math.floor((now-demoState.timelineStartMs)/dur));
+    startMs=demoState.timelineStartMs+n*dur;endMs=startMs+dur;
+    startSec=n*dur/1000;endSec=(n+1)*dur/1000;phase='running';
+  }
+  const ids=Array.from({length:300},(_,i)=>Math.min(10000,1+Math.floor(i*9999/299)));
+  const devices=ids.slice(0,100).map((id,i)=>({device_id:'DEMO-'+String(i+1).padStart(3,'0'),source:'公開デモ',connected:true,point_id:id,lat:null,lon:null,seq:i+1}));
+  return {
+    demo:true,ips:[],wsPort:8765,
+    stats:{connected:300,reconnecting:0,stale:0,peak:300,known:300,devices,preview:{mapped:300,pointCounts:ids.map(id=>[id,1])}},
+    timeline:{
+      running:demoState.running,phase,effectId:demoState.effectId,effectName:demoState.effectName,
+      configRevision:demoState.configRevision,activeRevision:demoState.configRevision,
+      serverTimeMs:now,timelineStartMs:demoState.timelineStartMs,
+      currentSegmentStartMs:startMs,currentSegmentEndMs:endMs,currentSegmentStartSec:startSec,currentSegmentEndSec:endSec
+    }
+  };
+}
+function publicDemoTick(){const m=demoSnapshot();lastSnap=m;lastRecvPerf=performance.now();render(m)}
+function startPublicDemo(){$('conn').innerHTML='<span class="good">公開デモモード</span>';publicDemoTick();setInterval(publicDemoTick,100)}
+function connect(){
+  ws=new WebSocket(`ws://${location.hostname}:8765/sun-ui`);
+  ws.onopen=()=>{$('conn').innerHTML='<span class="good">ホスト接続済み</span>';ws.send(JSON.stringify({type:'ui-hello'}))};
+  ws.onclose=()=>{$('conn').innerHTML='<span class="warn">再接続中…</span>';setTimeout(connect,1000)};
+  ws.onmessage=e=>{let m;try{m=JSON.parse(e.data)}catch{return}if(m.type!=='ui-snapshot')return;lastSnap=m;lastRecvPerf=performance.now();render(m)}
+}
+function send(o){
+  if(IS_PUBLIC_DEMO){
+    if(o.type==='ui-config'){
+      demoState.effectId=o.effectId||demoState.effectId;demoState.effectName=effectLabel(demoState.effectId);
+      demoState.segmentDurationMs=Math.max(500,(+o.segmentDurationSec||5)*1000);
+      demoState.checkIntervalMs=Math.max(200,(+o.checkIntervalSec||1)*1000);
+      demoState.configRevision++;
+    }else if(o.type==='ui-start'){
+      demoState.running=true;demoState.timelineStartMs=Date.now();demoState.configRevision++;
+    }else if(o.type==='ui-stop'){
+      demoState.running=false;demoState.timelineStartMs=null;demoState.configRevision++;
+    }
+    publicDemoTick();return;
+  }
+  if(ws&&ws.readyState===1)ws.send(JSON.stringify(o))
+}
+function render(m){const s=m.stats,t=m.timeline;$('connected').textContent=s.connected;$('recon').textContent=s.reconnecting;$('stale').textContent=s.stale;$('peak').textContent=s.peak;$('known').textContent=s.known;const seg=t.currentSegmentStartSec==null?'—':`${(+t.currentSegmentStartSec).toFixed(1)}～${(+t.currentSegmentEndSec).toFixed(1)}秒`;$('state').textContent=`${t.running?'運転中':'停止'} / ${t.effectName} / ${seg} / revision ${t.configRevision}`;$('address').textContent=m.demo?'提出用の公開デモです。実運用ではローカルホストに端末が接続します。':`端末接続先: ${m.ips.map(ip=>`ws://${ip}:${m.wsPort}/device`).join(' | ')}`;$('previewCount').textContent=`実接続 ${s.connected}台を反映（位置取得 ${s.preview?.mapped??0}台）`;$('previewEffect').textContent=`演出 ${t.effectName} / ${seg}`;$('tbody').innerHTML=s.devices.map(d=>`<tr><td>${esc(d.device_id)}</td><td>${esc(d.source)}</td><td>${d.connected?'<span class="good">接続</span>':'<span class="warn">非アクティブ</span>'}</td><td>${d.point_id??'—'}</td><td>${d.lat==null?'—':Number(d.lat).toFixed(7)}</td><td>${d.lon==null?'—':Number(d.lon).toFixed(7)}</td><td>${d.seq}</td></tr>`).join('')}
 function esc(s){return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
-function applySettings(){send({type:'ui-config',effectId:$('effect').value,segmentDurationSec:+$('segment').value,checkIntervalSec:+$('check').value,transitionMode:$('transition').value,startDelaySec:+$('delay').value});send({type:'ui-timeout',seconds:+$('timeout').value})}$('apply').onclick=applySettings;$('start').onclick=()=>{applySettings();send({type:'ui-start'})};$('stop').onclick=()=>send({type:'ui-stop'});fetch('/hold',{cache:'no-store'}).catch(()=>{});try{connect()}catch(_){$('conn').textContent='ローカル接続待機中'}
+function applySettings(){send({type:'ui-config',effectId:$('effect').value,segmentDurationSec:+$('segment').value,checkIntervalSec:+$('check').value,transitionMode:$('transition').value,startDelaySec:+$('delay').value});send({type:'ui-timeout',seconds:+$('timeout').value})}$('apply').onclick=applySettings;$('start').onclick=()=>{applySettings();send({type:'ui-start'})};$('stop').onclick=()=>send({type:'ui-stop'});if(IS_PUBLIC_DEMO)startPublicDemo();else{fetch('/hold',{cache:'no-store'}).catch(()=>{});try{connect()}catch(_){$('conn').textContent='ローカル接続待機中'}}
 function clamp(v,a,b){return Math.max(a,Math.min(b,v))}function mix(a,b,t){t=clamp(t,0,1);return Math.round(a+(b-a)*t)}function rgbMix(a,b,t){return `rgb(${mix(a[0],b[0],t)},${mix(a[1],b[1],t)},${mix(a[2],b[2],t)})`}function smooth01(t){t=clamp(t,0,1);return t*t*(3-2*t)}
 function effectColor(id,p,e){if(!p||!geo)return '#000';const A=geo.diameterEW/2,B=geo.diameterNS/2;if(id==='wave'){const x=p.x,y=p.y,yn=clamp(y/B,-.999,.999),edge=A*Math.sqrt(Math.max(0,1-yn*yn)),west=-edge,east=edge,width=Math.max(1,east-west),coast=west+width*.17,waterSpan=Math.max(1,east-coast),t=(x-coast)/waterSpan,q=((((e%8.8)+8.8)%8.8)/8.8),shoreMeters=Math.max(1,coast-west),sandNorm=clamp((coast-x)/shoreMeters,0,1);let water=0,foam=0,impact=0,retreat=0;if(q<.68){const a=smooth01(q/.68),front=.92-.90*a,d=t-front,crest=Math.exp(-Math.pow(d/.025,2)),body=.56*Math.exp(-Math.pow((d+.085)/.085,2))+.28*Math.exp(-Math.pow((d+.20)/.15,2)),ripple=.13*Math.exp(-Math.pow((d+.36)/.20,2))*(.55+.45*Math.sin((y/B*4.2+t*7.0-e*1.7)*Math.PI));impact=clamp((.13-front)/.13,0,1);water=clamp(body+crest*.55+ripple,0,1);foam=clamp(crest*(.20+.92*impact),0,1)}else{const r=smooth01((q-.68)/.32),front=.02+.58*r,d=t-front,crest=Math.exp(-Math.pow(d/.030,2)),wake=.34*Math.exp(-Math.pow((d-.11)/.075,2));retreat=Math.sin(r*Math.PI)*.95;water=clamp(.48*crest+wake,0,1);foam=clamp(.35*crest*retreat,0,1)}if(x<coast){const shore=Math.exp(-Math.pow(sandNorm/.58,2)),wash=clamp((impact*.92+retreat*.58)*shore,0,1),wet=clamp((impact*.45+retreat*.72)*Math.exp(-Math.pow(sandNorm/.85,2)),0,1),base=[105,78,41],dry=[198,164,104],wetc=[82,71,57],white=[235,248,252];let c=[mix(base[0],dry[0],.46),mix(base[1],dry[1],.46),mix(base[2],dry[2],.46)];c=[mix(c[0],wetc[0],wet),mix(c[1],wetc[1],wet),mix(c[2],wetc[2],wet)];c=[mix(c[0],white[0],wash*.80),mix(c[1],white[1],wash*.80),mix(c[2],white[2],wash*.80)];return `rgb(${c[0]},${c[1]},${c[2]})`}const deep=clamp(t,0,1),base=[0,10,30],blue=[24,132,190],cyan=[150,225,248],white=[238,251,255];let k=clamp(.05+.48*water+.12*(1-deep),0,1),c=[mix(base[0],blue[0],k),mix(base[1],blue[1],k),mix(base[2],blue[2],k)];c=[mix(c[0],cyan[0],foam*.68),mix(c[1],cyan[1],foam*.68),mix(c[2],cyan[2],foam*.68)];c=[mix(c[0],white[0],foam*.48),mix(c[1],white[1],foam*.48),mix(c[2],white[2],foam*.48)];return `rgb(${c[0]},${c[1]},${c[2]})`}if(id==='ripple'){const origins=[[-14,11],[13,12],[18,-7],[-9,-14],[7,17],[-19,-3],[0,0],[15,3],[-4,-18]],cycle=5.2;let best=0,tint=0,now=Math.floor(e/cycle);for(let back=0;back<2;back++){const idx=now-back;if(idx<0)continue;const age=e-idx*cycle;if(age<0||age>6)continue;const o=origins[((idx%origins.length)+origins.length)%origins.length],dist=Math.hypot(p.x-o[0],p.y-o[1]),radius=age*7.2;let ring=Math.exp(-Math.pow((dist-radius)/1.10,2));if(radius>5)ring=Math.max(ring,.72*Math.exp(-Math.pow((dist-(radius-5))/1.28,2)));if(radius>10)ring=Math.max(ring,.48*Math.exp(-Math.pow((dist-(radius-10))/1.42,2)));if(ring>best){best=ring;tint=idx%3}}const cols=[[65,220,255],[84,190,255],[120,225,255]],col=cols[(tint+3)%3];return rgbMix([0,4,18],col,clamp(best,0,1))}if(id==='fireworks'){const sn=.17364817766693033,centers=[[1,-24],[1,-16],[1,-8],[1,0],[1,8],[1,16],[1,24],[1,-20],[1,20],[1,0]],cols=[[255,80,55],[80,165,255],[255,205,55],[220,90,255],[80,255,175],[255,125,45],[245,245,255],[255,65,145]],spacing=.88,kNow=Math.floor(e/spacing);let rr=0,gg=0,bb=0;for(let dk=0;dk<4;dk++){const k=kNow-dk;if(k<0)continue;const age=e-k*spacing;if(age<0||age>2.15)continue;const c=centers[((k%centers.length)+centers.length)%centers.length],col=cols[((k%cols.length)+cols.length)%cols.length],dx=(p.x-c[0])*sn,dy=p.y-c[1],dist=Math.hypot(dx,dy),ang=Math.atan2(dy,dx),rad=.70+age*3,width=.34+age*.13,fade=clamp(1-age/2.15,0,1),ring=Math.exp(-Math.pow((dist-rad)/width,2)),rot=(k*1.618)%6.283185307,petal=.32+.88*Math.pow(Math.abs(Math.cos(6*(ang-rot))),8),inner=.34*Math.exp(-Math.pow((dist-(rad*.72))/(width*1.20),2));let seed=((p.id*1103515245+k*12345)>>>0)&0x7fffffff;const sparkle=(seed/0x7fffffff>.935&&ring>.12)?.42:0,flash=age<.22?Math.exp(-Math.pow(dist/(.55+age*2.2),2))*(1-age/.22):0,amp=clamp((ring*petal+inner*.34)*fade*1.24+sparkle+flash*.70,0,1);rr+=col[0]*amp;gg+=col[1]*amp;bb+=col[2]*amp}return `rgb(${clamp(Math.round(rr),0,255)},${clamp(Math.round(gg),0,255)},${clamp(Math.round(bb),0,255)})`}return '#000'}
 function currentElapsed(){if(!lastSnap)return null;const t=lastSnap.timeline;if(!t.running||t.phase!=='running'||t.currentSegmentStartSec==null)return null;const dt=(performance.now()-lastRecvPerf),serverNow=Number(t.serverTimeMs)+dt;if(Number.isFinite(serverNow)&&Number.isFinite(Number(t.timelineStartMs)))return Math.max(0,(serverNow-Number(t.timelineStartMs))/1000);if(Number.isFinite(serverNow)&&Number.isFinite(Number(t.currentSegmentStartMs)))return +t.currentSegmentStartSec+Math.max(0,(serverNow-Number(t.currentSegmentStartMs))/1000);return +t.currentSegmentStartSec+dt/1000}
