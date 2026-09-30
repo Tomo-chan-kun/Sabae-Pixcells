@@ -1,6 +1,6 @@
 <!doctype html><html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>ホストアプリ</title><style>:root{--b:#090d12;--p:#121821;--p2:#0d1219;--l:#2b3747;--t:#f4f7fb;--m:#9facbd;--a:#ffb330;--g:#48d383;--w:#ffca58;--r:#ff6673}*{box-sizing:border-box}body{margin:0;background:var(--b);color:var(--t);font-family:system-ui,-apple-system,"Segoe UI",sans-serif}header{padding:14px 18px;border-bottom:1px solid var(--l);position:sticky;top:0;z-index:20;background:#090d12ee;backdrop-filter:blur(8px)}header b{font-size:22px}main{max-width:1500px;margin:auto;padding:14px;display:grid;gap:12px}.card{background:var(--p);border:1px solid var(--l);border-radius:14px;padding:14px}.card h3{margin:0 0 10px}.grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}.metrics{display:grid;grid-template-columns:repeat(5,1fr);gap:10px}.metric{background:var(--p2);border:1px solid var(--l);border-radius:10px;padding:10px}.metric b{font-size:24px;display:block}.metric small,label{color:var(--m)}select,input,button{width:100%;padding:10px;border-radius:9px;border:1px solid var(--l);background:var(--p2);color:var(--t)}button{font-weight:800;cursor:pointer}.primary{background:var(--a);color:#231800}.row{display:flex;gap:8px}.status{font-family:ui-monospace,SFMono-Regular,Consolas,monospace}.good{color:var(--g)}.warn{color:var(--w)}.bad{color:var(--r)}table{width:100%;border-collapse:collapse;font-size:12px}th,td{padding:7px;border-bottom:1px solid #24303e;text-align:left;white-space:nowrap}.previews{display:grid;grid-template-columns:1fr 1fr;gap:14px}.previewBox{background:#090d13;border:1px solid var(--l);border-radius:12px;padding:10px}.previewTitle{font-size:13px;font-weight:800;margin:0 0 8px;color:#dbe6f2}.canvasWrap{height:480px;min-height:320px}.canvasWrap canvas{width:100%;height:100%;display:block;background:#000;border-radius:10px}.note{font-size:11px;color:var(--m);margin-top:8px}.previewSummary{display:flex;gap:16px;flex-wrap:wrap;margin-bottom:10px;font-size:12px}.pill{background:#0c131c;border:1px solid var(--l);border-radius:999px;padding:6px 10px}@media(max-width:950px){.grid,.metrics{grid-template-columns:1fr 1fr}.previews{grid-template-columns:1fr}.canvasWrap{height:420px}}@media(max-width:520px){.grid,.metrics{grid-template-columns:1fr}.canvasWrap{height:350px}}</style></head><body>
 <header><b>Sabae Pixcell ホストアプリ</b><div id="conn">ローカル制御画面へ接続中…</div></header><main>
-<section class="card"><h3>1. 接続状況</h3><div class="metrics"><div class="metric"><b id="connected">0</b><small>接続中</small></div><div class="metric"><b id="recon">0</b><small>再接続中</small></div><div class="metric"><b id="stale">0</b><small>応答なし</small></div><div class="metric"><b id="peak">0</b><small>過去最高</small></div><div class="metric"><b id="known">0</b><small>認識済み</small></div></div></section>
+<section class="card"><h3>1. 接続状況</h3><div class="metrics"><div class="metric"><b id="connected">0</b><small>接続中</small></div><div class="metric"><b id="recon">0</b><small>再接続中</small></div><div class="metric"><b id="stale">0</b><small>応答なし</small></div><div class="metric"><b id="peak">0</b><small>過去最高</small></div><div class="metric"><b id="known">0</b><small>認識済み</small></div></div><div id="publicDemoControls" style="margin-top:12px;display:none"><div class="note" style="margin-bottom:8px">※この公開ページでは実端末は接続していません。下のボタンを押した場合のみ、300台の仮想接続を使った表示デモを開始します。</div><button id="demoToggle" class="primary">接続デモモードを開始（仮想300台）</button></div></section>
 <section class="card"><h3>2. 演出制御</h3><div class="grid"><label>演出<select id="effect"><option value="wave">波（奥→手前）</option><option value="ripple">波紋</option><option value="fireworks">花火</option></select></label><label>区間長（秒）<input id="segment" type="number" min="0.5" max="60" step="0.1" value="5"></label><label>GPS確認間隔（秒）<input id="check" type="number" min="0.2" max="10" step="0.1" value="1"></label><label>変更方式<select id="transition"><option value="boundary">次区間から</option><option value="immediate">即時切替</option></select></label></div><div class="grid" style="margin-top:10px"><label>開始猶予（秒）<input id="delay" type="number" min="0" max="30" step="0.1" value="2"></label><label>端末タイムアウト（秒）<input id="timeout" type="number" min="1" max="60" step="1" value="4"></label><button id="apply">設定反映</button><div class="row"><button id="start" class="primary">演出開始</button><button id="stop">停止</button></div></div></section>
 <section class="card"><h3>3. こう映っているはず</h3><div class="previewSummary"><span class="pill" id="previewCount">実接続 0台を反映</span><span class="pill" id="previewEffect">演出 —</span><span class="pill">表示形状：実際の広場に近い滑らかな楕円</span><span class="pill">光点サイズ：2000端末時で固定</span></div><div class="previews"><div class="previewBox"><div class="previewTitle">真上から（左=北 / 上=東・海側 / 下=西・砂浜側）</div><div class="canvasWrap"><canvas id="topCanvas"></canvas></div><div class="note">実接続端末を表示。</div></div><div class="previewBox"><div class="previewTitle">10°視点（西・砂浜側から東・海側を見る）</div><div class="canvasWrap"><canvas id="angleCanvas"></canvas></div><div class="note">花火：10°補正。波：砂浜へ寄せて引く往復波。波紋：発生点が周期ごとに移動。</div></div></div></section>
 <section class="card"><h3>4. 現在状態</h3><div id="state" class="status">—</div><div id="address" class="status" style="margin-top:8px">—</div></section>
@@ -9,6 +9,7 @@
 const $=id=>document.getElementById(id);
 const IS_PUBLIC_DEMO=location.hostname.endsWith('github.io');
 let ws=null,lastSnap=null,lastRecvPerf=0,geo=null,pointMap=[];
+let demoEnabled=false;
 let demoState={running:false,effectId:'wave',effectName:'波（奥→手前）',segmentDurationMs:5000,checkIntervalMs:1000,configRevision:1,timelineStartMs:null};
 
 function makeFallbackPoints(){
@@ -37,11 +38,12 @@ function demoSnapshot(){
     startMs=demoState.timelineStartMs+n*dur;endMs=startMs+dur;
     startSec=n*dur/1000;endSec=(n+1)*dur/1000;phase='running';
   }
-  const ids=Array.from({length:300},(_,i)=>Math.min(10000,1+Math.floor(i*9999/299)));
-  const devices=ids.slice(0,100).map((id,i)=>({device_id:'DEMO-'+String(i+1).padStart(3,'0'),source:'公開デモ',connected:true,point_id:id,lat:null,lon:null,seq:i+1}));
+  const ids=demoEnabled?Array.from({length:300},(_,i)=>Math.min(10000,1+Math.floor(i*9999/299))):[];
+  const devices=ids.slice(0,100).map((id,i)=>({device_id:'DEMO-'+String(i+1).padStart(3,'0'),source:'接続デモ',connected:true,point_id:id,lat:null,lon:null,seq:i+1}));
+  const n=demoEnabled?300:0;
   return {
     demo:true,ips:[],wsPort:8765,
-    stats:{connected:300,reconnecting:0,stale:0,peak:300,known:300,devices,preview:{mapped:300,pointCounts:ids.map(id=>[id,1])}},
+    stats:{connected:n,reconnecting:0,stale:0,peak:n,known:n,devices,preview:{mapped:n,pointCounts:ids.map(id=>[id,1])}},
     timeline:{
       running:demoState.running,phase,effectId:demoState.effectId,effectName:demoState.effectName,
       configRevision:demoState.configRevision,activeRevision:demoState.configRevision,
@@ -51,7 +53,28 @@ function demoSnapshot(){
   };
 }
 function publicDemoTick(){const m=demoSnapshot();lastSnap=m;lastRecvPerf=performance.now();render(m)}
-function startPublicDemo(){$('conn').innerHTML='<span class="good">公開デモモード</span>';publicDemoTick();setInterval(publicDemoTick,100)}
+function startPublicDemo(){
+  $('publicDemoControls').style.display='block';
+  $('conn').innerHTML='<span class="warn">公開ページ：実接続なし</span>';
+  $('address').textContent='実端末は接続されていません。必要な場合は「接続デモモード」を開始してください。';
+  $('demoToggle').onclick=()=>{
+    demoEnabled=!demoEnabled;
+    if(demoEnabled){
+      demoState.running=false;
+      demoState.timelineStartMs=null;
+      $('demoToggle').textContent='接続デモモードを終了';
+      $('conn').innerHTML='<span class="good">接続デモモード（仮想300台）</span>';
+    }else{
+      demoState.running=false;
+      demoState.timelineStartMs=null;
+      $('demoToggle').textContent='接続デモモードを開始（仮想300台）';
+      $('conn').innerHTML='<span class="warn">公開ページ：実接続なし</span>';
+    }
+    publicDemoTick();
+  };
+  publicDemoTick();
+  setInterval(publicDemoTick,100)
+}
 function connect(){
   ws=new WebSocket(`ws://${location.hostname}:8765/sun-ui`);
   ws.onopen=()=>{$('conn').innerHTML='<span class="good">ホスト接続済み</span>';ws.send(JSON.stringify({type:'ui-hello'}))};
@@ -66,6 +89,10 @@ function send(o){
       demoState.checkIntervalMs=Math.max(200,(+o.checkIntervalSec||1)*1000);
       demoState.configRevision++;
     }else if(o.type==='ui-start'){
+      if(!demoEnabled){
+        $('state').textContent='公開ページ：実接続なし / 接続デモモードを開始してください';
+        publicDemoTick();return;
+      }
       demoState.running=true;demoState.timelineStartMs=Date.now();demoState.configRevision++;
     }else if(o.type==='ui-stop'){
       demoState.running=false;demoState.timelineStartMs=null;demoState.configRevision++;
@@ -74,7 +101,7 @@ function send(o){
   }
   if(ws&&ws.readyState===1)ws.send(JSON.stringify(o))
 }
-function render(m){const s=m.stats,t=m.timeline;$('connected').textContent=s.connected;$('recon').textContent=s.reconnecting;$('stale').textContent=s.stale;$('peak').textContent=s.peak;$('known').textContent=s.known;const seg=t.currentSegmentStartSec==null?'—':`${(+t.currentSegmentStartSec).toFixed(1)}～${(+t.currentSegmentEndSec).toFixed(1)}秒`;$('state').textContent=`${t.running?'運転中':'停止'} / ${t.effectName} / ${seg} / revision ${t.configRevision}`;$('address').textContent=m.demo?'提出用の公開デモです。実運用ではローカルホストに端末が接続します。':`端末接続先: ${m.ips.map(ip=>`ws://${ip}:${m.wsPort}/device`).join(' | ')}`;$('previewCount').textContent=`実接続 ${s.connected}台を反映（位置取得 ${s.preview?.mapped??0}台）`;$('previewEffect').textContent=`演出 ${t.effectName} / ${seg}`;$('tbody').innerHTML=s.devices.map(d=>`<tr><td>${esc(d.device_id)}</td><td>${esc(d.source)}</td><td>${d.connected?'<span class="good">接続</span>':'<span class="warn">非アクティブ</span>'}</td><td>${d.point_id??'—'}</td><td>${d.lat==null?'—':Number(d.lat).toFixed(7)}</td><td>${d.lon==null?'—':Number(d.lon).toFixed(7)}</td><td>${d.seq}</td></tr>`).join('')}
+function render(m){const s=m.stats,t=m.timeline;$('connected').textContent=s.connected;$('recon').textContent=s.reconnecting;$('stale').textContent=s.stale;$('peak').textContent=s.peak;$('known').textContent=s.known;const seg=t.currentSegmentStartSec==null?'—':`${(+t.currentSegmentStartSec).toFixed(1)}～${(+t.currentSegmentEndSec).toFixed(1)}秒`;$('state').textContent=`${t.running?'運転中':'停止'} / ${t.effectName} / ${seg} / revision ${t.configRevision}`;$('address').textContent=m.demo?(demoEnabled?'接続デモモード：仮想300台を表示中（実端末の接続ではありません）':'公開ページ：実端末は接続されていません'):`端末接続先: ${m.ips.map(ip=>`ws://${ip}:${m.wsPort}/device`).join(' | ')}`;$('previewCount').textContent=`実接続 ${s.connected}台を反映（位置取得 ${s.preview?.mapped??0}台）`;$('previewEffect').textContent=`演出 ${t.effectName} / ${seg}`;$('tbody').innerHTML=s.devices.map(d=>`<tr><td>${esc(d.device_id)}</td><td>${esc(d.source)}</td><td>${d.connected?'<span class="good">接続</span>':'<span class="warn">非アクティブ</span>'}</td><td>${d.point_id??'—'}</td><td>${d.lat==null?'—':Number(d.lat).toFixed(7)}</td><td>${d.lon==null?'—':Number(d.lon).toFixed(7)}</td><td>${d.seq}</td></tr>`).join('')}
 function esc(s){return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
 function applySettings(){send({type:'ui-config',effectId:$('effect').value,segmentDurationSec:+$('segment').value,checkIntervalSec:+$('check').value,transitionMode:$('transition').value,startDelaySec:+$('delay').value});send({type:'ui-timeout',seconds:+$('timeout').value})}$('apply').onclick=applySettings;$('start').onclick=()=>{applySettings();send({type:'ui-start'})};$('stop').onclick=()=>send({type:'ui-stop'});if(IS_PUBLIC_DEMO)startPublicDemo();else{fetch('/hold',{cache:'no-store'}).catch(()=>{});try{connect()}catch(_){$('conn').textContent='ローカル接続待機中'}}
 function clamp(v,a,b){return Math.max(a,Math.min(b,v))}function mix(a,b,t){t=clamp(t,0,1);return Math.round(a+(b-a)*t)}function rgbMix(a,b,t){return `rgb(${mix(a[0],b[0],t)},${mix(a[1],b[1],t)},${mix(a[2],b[2],t)})`}function smooth01(t){t=clamp(t,0,1);return t*t*(3-2*t)}
