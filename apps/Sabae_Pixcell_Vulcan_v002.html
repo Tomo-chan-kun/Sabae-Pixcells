@@ -1,13 +1,13 @@
 <!doctype html><html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>仮想クライアント</title><style>
 :root{--b:#0a0d12;--p:#121821;--l:#2b3747;--t:#f4f7fb;--m:#9facbd;--a:#ff8f4d;--g:#48d383;--w:#ffca58;--r:#ff6673}*{box-sizing:border-box}body{margin:0;background:var(--b);color:var(--t);font-family:system-ui,-apple-system,"Segoe UI",sans-serif}header{padding:14px 18px;border-bottom:1px solid var(--l);position:sticky;top:0;background:#0a0d12ee}header b{font-size:22px}header span{color:var(--a)}main{max-width:1100px;margin:auto;padding:14px;display:grid;gap:12px}.card{background:var(--p);border:1px solid var(--l);border-radius:14px;padding:14px}.grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}.metrics{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}.metric{background:#0e1116;border:1px solid var(--l);border-radius:10px;padding:10px}.metric b{display:block;font-size:22px}.metric small,label{color:var(--m)}input,button{width:100%;padding:10px;border-radius:9px;border:1px solid var(--l);background:#0e1116;color:var(--t)}button{font-weight:800;cursor:pointer}.primary{background:var(--a);color:#17100b}.row{display:flex;gap:8px}.good{color:var(--g)}.warn{color:var(--w)}.bad{color:var(--r)}.status{font-family:ui-monospace,SFMono-Regular,Consolas,monospace}.note{font-size:12px;color:var(--m)}@media(max-width:750px){.grid,.metrics{grid-template-columns:1fr 1fr}}@media(max-width:500px){.grid,.metrics{grid-template-columns:1fr}}</style></head><body>
 <header><b>Sabae Pixcell 仮想クライアント</b><div id="conn">接続中…</div></header><main>
-<section class="card"><h3>1. 接続・負荷設定</h3><div class="grid"><label>IP<input id="host" value="127.0.0.1"></label><label>Port<input id="port" type="number" value="8765"></label><label>端末数（最大10000）<input id="count" type="number" min="1" max="10000" value="100"></label><label>段階接続（台/秒）<input id="ramp" type="number" min="1" max="5000" value="100"></label><label>送信欠落（%）<input id="loss" type="number" min="0" max="100" step="0.1" value="0"></label><label>追加遅延（ms）<input id="delay" type="number" min="0" max="10000" value="0"></label></div><div class="grid" style="margin-top:10px"><button id="discover">自動検出</button><button id="apply">設定反映</button><div class="row"><button id="start" class="primary">接続・送受信開始</button><button id="stop">停止</button></div></div></section>
+<section class="card"><h3>1. 接続・負荷設定</h3><div class="grid"><label>IP<input id="host" value="127.0.0.1"></label><label>Port<input id="port" type="number" value="8765"></label><label>端末数（最大10000）<input id="count" type="number" min="1" max="10000" value="100"></label><label>段階接続（台/秒）<input id="ramp" type="number" min="1" max="5000" value="100"></label><label>送信欠落（%）<input id="loss" type="number" min="0" max="100" step="0.1" value="0"></label><label>追加遅延（ms）<input id="delay" type="number" min="0" max="10000" value="0"></label></div><div class="grid" style="margin-top:10px"><button id="discover">自動検出</button><button id="apply">設定反映</button><div class="row"><button id="start" class="primary">接続・送受信開始</button><button id="stop">停止</button></div></div><div id="publicDemoControls" style="margin-top:12px;display:none"><div class="note" style="margin-bottom:8px">※この公開ページから実際のホストへは接続していません。下のボタンを押した場合のみ、設定した台数の仮想接続をデモ表示します。</div><button id="demoToggle" class="primary">接続デモモードを開始</button></div></section>
 <section class="metrics"><div class="metric"><b id="spawned">0</b><small>生成済み</small></div><div class="metric"><b id="connected">0</b><small>接続中</small></div><div class="metric"><b id="recon">0</b><small>再接続中</small></div><div class="metric"><b id="errors">0</b><small>エラー</small></div><div class="metric"><b id="tx">0</b><small>送信</small></div><div class="metric"><b id="rx">0</b><small>受信</small></div><div class="metric"><b id="avg">0</b><small>平均RTT ms</small></div><div class="metric"><b id="max">0</b><small>最大RTT ms</small></div></section>
-<section class="card"><h3>2. ホスト受信情報</h3><div id="state" class="status">—</div><p class="note">西山公園GPS版の多数端末接続を再現する負荷試験用ツールです。</p></section>
+<section class="card"><h3>2. ホスト受信情報</h3><div id="state" class="status">—</div><p class="note">西山公園GPS版の多数端末接続を再現する負荷試験用ツールです。公開ページの接続デモモードでは、ホスト受信情報も模擬表示です。</p></section>
 </main><script>
 const $=id=>document.getElementById(id);
 const IS_PUBLIC_DEMO=location.hostname.endsWith('github.io');
-let ws=null,demoRunning=false,demoTimer=null;
+let ws=null,demoEnabled=false,demoRunning=false,demoTimer=null;
 let demo={host:'127.0.0.1',port:8765,target:100,spawned:0,connected:0,reconnecting:0,errors:0,tx:0,rx:0,avgRttMs:0,maxRttMs:0,effect:'波（奥→手前）',segment:'0.0～5.0秒',revision:1,checkMs:1000};
 
 function connect(){
@@ -21,7 +21,9 @@ function render(m){
   $('host').value=m.host;$('port').value=m.port;$('spawned').textContent=`${m.spawned}/${m.target}`;
   $('connected').textContent=m.connected;$('recon').textContent=m.reconnecting;$('errors').textContent=m.errors;
   $('tx').textContent=m.tx;$('rx').textContent=m.rx;$('avg').textContent=m.avgRttMs;$('max').textContent=m.maxRttMs;
-  $('state').textContent=`${m.effect} / ${m.segment} / revision ${m.revision} / 確認間隔 ${m.checkMs} ms`
+  if(IS_PUBLIC_DEMO&&!demoEnabled)$('state').textContent='公開ページ：実ホスト未接続 / 接続デモ未開始';
+  else if(IS_PUBLIC_DEMO)$('state').textContent=`接続デモ（模擬） / ${m.effect} / ${m.segment} / revision ${m.revision} / 確認間隔 ${m.checkMs} ms`;
+  else $('state').textContent=`${m.effect} / ${m.segment} / revision ${m.revision} / 確認間隔 ${m.checkMs} ms`
 }
 function applyDemoConfig(o){
   demo.host=o.host||'127.0.0.1';demo.port=+o.port||8765;demo.target=Math.max(1,Math.min(10000,+o.count||100));
@@ -44,10 +46,20 @@ function send(o){
     if(o.type==='ui-config')applyDemoConfig(o);
     else if(o.type==='ui-discover'){$('host').value='127.0.0.1';demo.host='127.0.0.1';render(demo)}
     else if(o.type==='ui-start'){
+      if(!demoEnabled){
+        $('conn').innerHTML='<span class="warn">公開ページ：実ホスト未接続</span>';
+        $('state').textContent='接続デモモードを開始してください';
+        return;
+      }
       demoRunning=true;demo.spawned=0;demo.connected=0;demo.tx=0;demo.rx=0;demo.errors=0;demo.maxRttMs=0;demo.revision++;
-      $('conn').innerHTML='<span class="good">公開デモ稼働中</span>';if(!demoTimer)demoTimer=setInterval(demoTick,100);demoTick();
+      $('conn').innerHTML='<span class="good">接続デモモード（模擬接続）</span>';
+      if(!demoTimer)demoTimer=setInterval(demoTick,100);
+      demoTick();
     }else if(o.type==='ui-stop'){
-      demoRunning=false;demo.revision++;$('conn').innerHTML='<span class="warn">公開デモ停止</span>';render(demo)
+      demoRunning=false;demo.revision++;
+      demo.spawned=0;demo.connected=0;
+      $('conn').innerHTML=demoEnabled?'<span class="warn">接続デモモード停止中</span>':'<span class="warn">公開ページ：実ホスト未接続</span>';
+      render(demo)
     }
     return;
   }
@@ -57,6 +69,23 @@ $('apply').onclick=()=>send(config());
 $('discover').onclick=()=>send({type:'ui-discover'});
 $('start').onclick=()=>{send(config());setTimeout(()=>send({type:'ui-start'}),100)};
 $('stop').onclick=()=>send({type:'ui-stop'});
-if(IS_PUBLIC_DEMO){$('conn').innerHTML='<span class="good">公開デモモード</span>';render(demo)}
-else{fetch('http://127.0.0.1:18781/hold',{mode:'no-cors',cache:'no-store'}).catch(()=>{});try{connect()}catch(_){$('conn').textContent='ローカル接続待機中'}}
+if(IS_PUBLIC_DEMO){
+  $('publicDemoControls').style.display='block';
+  $('conn').innerHTML='<span class="warn">公開ページ：実ホスト未接続</span>';
+  render(demo);
+  $('demoToggle').onclick=()=>{
+    demoEnabled=!demoEnabled;
+    if(demoEnabled){
+      $('demoToggle').textContent='接続デモモードを終了';
+      send(config());
+      send({type:'ui-start'});
+    }else{
+      demoRunning=false;
+      demo.spawned=0;demo.connected=0;demo.reconnecting=0;demo.errors=0;demo.tx=0;demo.rx=0;demo.avgRttMs=0;demo.maxRttMs=0;demo.revision++;
+      $('demoToggle').textContent='接続デモモードを開始';
+      $('conn').innerHTML='<span class="warn">公開ページ：実ホスト未接続</span>';
+      render(demo);
+    }
+  };
+}else{fetch('http://127.0.0.1:18781/hold',{mode:'no-cors',cache:'no-store'}).catch(()=>{});try{connect()}catch(_){$('conn').textContent='ローカル接続待機中'}}
 </script></body></html>
