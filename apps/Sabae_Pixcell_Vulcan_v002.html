@@ -5,5 +5,58 @@
 <section class="metrics"><div class="metric"><b id="spawned">0</b><small>生成済み</small></div><div class="metric"><b id="connected">0</b><small>接続中</small></div><div class="metric"><b id="recon">0</b><small>再接続中</small></div><div class="metric"><b id="errors">0</b><small>エラー</small></div><div class="metric"><b id="tx">0</b><small>送信</small></div><div class="metric"><b id="rx">0</b><small>受信</small></div><div class="metric"><b id="avg">0</b><small>平均RTT ms</small></div><div class="metric"><b id="max">0</b><small>最大RTT ms</small></div></section>
 <section class="card"><h3>2. ホスト受信情報</h3><div id="state" class="status">—</div><p class="note">西山公園GPS版の多数端末接続を再現する負荷試験用ツールです。</p></section>
 </main><script>
-const $=id=>document.getElementById(id);let ws;function connect(){ws=new WebSocket(`ws://${location.host}/ui`);ws.onopen=()=>{$('conn').innerHTML='<span class="good">接続済み</span>'};ws.onclose=()=>{$('conn').innerHTML='<span class="warn">再接続中…</span>';setTimeout(connect,1000)};ws.onmessage=e=>{let m;try{m=JSON.parse(e.data)}catch{return}if(m.type!=='ui-snapshot')return;render(m.metrics)}}function send(o){if(ws&&ws.readyState===1)ws.send(JSON.stringify(o))}function config(){return{type:'ui-config',host:$('host').value,port:+$('port').value,count:+$('count').value,ramp:+$('ramp').value,loss:+$('loss').value,delay:+$('delay').value}}function render(m){$('host').value=m.host;$('port').value=m.port;$('spawned').textContent=`${m.spawned}/${m.target}`;$('connected').textContent=m.connected;$('recon').textContent=m.reconnecting;$('errors').textContent=m.errors;$('tx').textContent=m.tx;$('rx').textContent=m.rx;$('avg').textContent=m.avgRttMs;$('max').textContent=m.maxRttMs;$('state').textContent=`${m.effect} / ${m.segment} / revision ${m.revision} / 確認間隔 ${m.checkMs} ms`}$('apply').onclick=()=>send(config());$('discover').onclick=()=>send({type:'ui-discover'});$('start').onclick=()=>{send(config());setTimeout(()=>send({type:'ui-start'}),100)};$('stop').onclick=()=>send({type:'ui-stop'});fetch('http://127.0.0.1:18781/hold',{mode:'no-cors',cache:'no-store'}).catch(()=>{});try{connect()}catch(_){$('conn').textContent='ローカル接続待機中'};
+const $=id=>document.getElementById(id);
+const IS_PUBLIC_DEMO=location.hostname.endsWith('github.io');
+let ws=null,demoRunning=false,demoTimer=null;
+let demo={host:'127.0.0.1',port:8765,target:100,spawned:0,connected:0,reconnecting:0,errors:0,tx:0,rx:0,avgRttMs:0,maxRttMs:0,effect:'波（奥→手前）',segment:'0.0～5.0秒',revision:1,checkMs:1000};
+
+function connect(){
+  ws=new WebSocket(`ws://${location.host}/ui`);
+  ws.onopen=()=>{$('conn').innerHTML='<span class="good">接続済み</span>'};
+  ws.onclose=()=>{$('conn').innerHTML='<span class="warn">再接続中…</span>';setTimeout(connect,1000)};
+  ws.onmessage=e=>{let m;try{m=JSON.parse(e.data)}catch{return}if(m.type!=='ui-snapshot')return;render(m.metrics)}
+}
+function config(){return{type:'ui-config',host:$('host').value,port:+$('port').value,count:+$('count').value,ramp:+$('ramp').value,loss:+$('loss').value,delay:+$('delay').value}}
+function render(m){
+  $('host').value=m.host;$('port').value=m.port;$('spawned').textContent=`${m.spawned}/${m.target}`;
+  $('connected').textContent=m.connected;$('recon').textContent=m.reconnecting;$('errors').textContent=m.errors;
+  $('tx').textContent=m.tx;$('rx').textContent=m.rx;$('avg').textContent=m.avgRttMs;$('max').textContent=m.maxRttMs;
+  $('state').textContent=`${m.effect} / ${m.segment} / revision ${m.revision} / 確認間隔 ${m.checkMs} ms`
+}
+function applyDemoConfig(o){
+  demo.host=o.host||'127.0.0.1';demo.port=+o.port||8765;demo.target=Math.max(1,Math.min(10000,+o.count||100));
+  demo.ramp=Math.max(1,+o.ramp||100);demo.loss=Math.max(0,Math.min(100,+o.loss||0));demo.extraDelay=Math.max(0,+o.delay||0);demo.revision++;
+  if(demo.spawned>demo.target){demo.spawned=demo.target;demo.connected=Math.min(demo.connected,demo.target)}
+  render(demo)
+}
+function demoTick(){
+  if(!demoRunning)return;
+  const add=Math.max(1,Math.ceil((demo.ramp||100)/10));
+  demo.spawned=Math.min(demo.target,demo.spawned+add);demo.connected=demo.spawned;
+  const perTick=demo.connected;
+  demo.tx+=perTick;demo.rx+=Math.round(perTick*(1-(demo.loss||0)/100));
+  const base=12+(demo.extraDelay||0);demo.avgRttMs=Math.round((base+Math.sin(Date.now()/650)*3)*10)/10;demo.maxRttMs=Math.max(demo.maxRttMs,Math.round((demo.avgRttMs+5)*10)/10);
+  const sec=(Date.now()/1000)%15,seg=Math.floor(sec/5)*5;demo.segment=`${seg.toFixed(1)}～${(seg+5).toFixed(1)}秒`;
+  render(demo)
+}
+function send(o){
+  if(IS_PUBLIC_DEMO){
+    if(o.type==='ui-config')applyDemoConfig(o);
+    else if(o.type==='ui-discover'){$('host').value='127.0.0.1';demo.host='127.0.0.1';render(demo)}
+    else if(o.type==='ui-start'){
+      demoRunning=true;demo.spawned=0;demo.connected=0;demo.tx=0;demo.rx=0;demo.errors=0;demo.maxRttMs=0;demo.revision++;
+      $('conn').innerHTML='<span class="good">公開デモ稼働中</span>';if(!demoTimer)demoTimer=setInterval(demoTick,100);demoTick();
+    }else if(o.type==='ui-stop'){
+      demoRunning=false;demo.revision++;$('conn').innerHTML='<span class="warn">公開デモ停止</span>';render(demo)
+    }
+    return;
+  }
+  if(ws&&ws.readyState===1)ws.send(JSON.stringify(o))
+}
+$('apply').onclick=()=>send(config());
+$('discover').onclick=()=>send({type:'ui-discover'});
+$('start').onclick=()=>{send(config());setTimeout(()=>send({type:'ui-start'}),100)};
+$('stop').onclick=()=>send({type:'ui-stop'});
+if(IS_PUBLIC_DEMO){$('conn').innerHTML='<span class="good">公開デモモード</span>';render(demo)}
+else{fetch('http://127.0.0.1:18781/hold',{mode:'no-cors',cache:'no-store'}).catch(()=>{});try{connect()}catch(_){$('conn').textContent='ローカル接続待機中'}}
 </script></body></html>
