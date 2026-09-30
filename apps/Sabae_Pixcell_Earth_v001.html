@@ -1,63 +1,95 @@
 <!doctype html>
 <html lang="ja">
 <head>
-<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
-<meta name="theme-color" content="#000000"><title>Sabae PixCell Earth v001</title>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
+<meta name="theme-color" content="#000000">
+<title>Sabae Pixcell クライアントアプリ</title>
 <style>
 *{box-sizing:border-box}html,body{margin:0;width:100%;height:100%;background:#000;color:#fff;font-family:system-ui,-apple-system,"Segoe UI",sans-serif;overflow:hidden}
 #light{position:fixed;inset:0;background:#000;transition:background-color .035s linear}
-#top{position:fixed;left:10px;right:10px;top:10px;z-index:5;display:flex;justify-content:space-between;gap:8px;pointer-events:none}
-.badge{background:rgba(0,0,0,.55);backdrop-filter:blur(5px);border:1px solid rgba(255,255,255,.2);border-radius:999px;padding:6px 9px;font-size:11px}
-#bottom{position:fixed;left:10px;right:10px;bottom:10px;z-index:5;background:rgba(0,0,0,.60);border:1px solid rgba(255,255,255,.2);border-radius:12px;padding:8px}
-#bottom .line{display:flex;justify-content:space-between;gap:10px;font-size:11px}
-#settings{position:fixed;inset:0;z-index:10;background:#0c1016;color:#f5f7fb;padding:14px;overflow:auto;transform:translateY(100%);transition:transform .2s ease}
-#settings.open{transform:translateY(0)}
-h1{font-size:18px;margin:0 0 4px}small{color:#aeb7c6}label{display:block;font-size:12px;color:#aeb7c6;margin-top:12px}input{width:100%;padding:10px;margin-top:5px;border:1px solid #2c3746;border-radius:9px;background:#121923;color:#fff}
-button{padding:10px 12px;border:1px solid #2c3746;border-radius:10px;background:#172130;color:#fff;font-weight:700}.row{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
-#gear{position:fixed;right:10px;bottom:74px;z-index:7;border-radius:50%;width:44px;height:44px;padding:0}
+.badge{background:rgba(0,0,0,.58);backdrop-filter:blur(5px);border:1px solid rgba(255,255,255,.22);border-radius:999px;padding:7px 10px;font-size:11px}
+#top{position:fixed;left:10px;right:70px;top:10px;z-index:6;display:flex;gap:8px;align-items:flex-start;flex-wrap:wrap;pointer-events:none}
+#message{position:fixed;left:24px;right:24px;top:50%;transform:translateY(-50%);z-index:5;text-align:center;font-size:26px;font-weight:800;text-shadow:0 2px 12px #000;background:rgba(0,0,0,.18);border-radius:16px;padding:12px}
+#bottom{position:fixed;left:10px;right:10px;bottom:10px;z-index:6;background:rgba(0,0,0,.62);border:1px solid rgba(255,255,255,.2);border-radius:12px;padding:9px;font-size:11px;line-height:1.55}
+#gear{position:fixed;right:10px;top:10px;z-index:8;border-radius:50%;width:48px;height:48px;padding:0}
+#start{position:fixed;left:50%;bottom:78px;transform:translateX(-50%);z-index:7;width:auto;min-width:150px;font-size:18px;background:#1677ff;border-color:#4d97ff}
+button,input,select{font:inherit;color:#fff;border:1px solid #30394a;background:#151c27;border-radius:10px;padding:10px}
+button{font-weight:800}
+#settings{position:fixed;inset:0;z-index:20;background:#0d1117;padding:18px;overflow:auto;display:none}
+#settings.open{display:block}
+h1{font-size:21px;margin:0 0 4px}.sub{font-size:12px;color:#aab5c5;margin-bottom:18px}
+label{display:block;font-size:12px;color:#aab5c5;margin-top:13px}label input,label select{display:block;width:100%;margin-top:5px}
+.row{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px}.row button{flex:1}
+.check{display:flex;align-items:center;gap:9px;margin-top:14px;color:#e8edf5;font-size:13px}.check input{width:auto}
+.note{margin-top:16px;color:#aab5c5;font-size:11px;line-height:1.65}
+.good{color:#67e398}.warn{color:#ffd06a}.bad{color:#ff7883}
 </style>
-</head><body>
+</head>
+<body>
 <div id="light"></div>
-<div id="top"><div class="badge" id="conn">Sun: 未接続</div><div class="badge" id="idBadge"></div></div>
+<div id="top"><div class="badge" id="hostStatus">ホストアプリ: 未接続</div><div class="badge" id="modeStatus">GPS待機</div></div>
+<div id="message">演出開始を押してください</div>
+<div id="bottom">西山公園 GPS版</div>
 <button id="gear">⚙</button>
-<div id="bottom">
-  <div class="line"><span>RSSI A <b id="a">—</b></span><span>B <b id="b">—</b></span><span>C <b id="c">—</b></span></div>
-  <div class="line" style="margin-top:4px"><span>RSSI取得→発色 <b id="delay">—</b></span><span id="seq">seq 0</span></div>
-</div>
+<button id="start">演出開始</button>
 <div id="settings">
-  <h1>Sabae PixCell Earth <small>v001</small></h1><small>発光用</small>
-  <label>Sun Server<input id="url" value="ws://192.168.1.100:8765/device"></label>
-  <div class="row"><button id="connect">接続</button><button id="close">閉じる</button></div>
-  <label>テストRSSI A<input id="ra" type="range" min="-100" max="-20" value="-60"></label>
-  <label>テストRSSI B<input id="rb" type="range" min="-100" max="-20" value="-70"></label>
-  <label>テストRSSI C<input id="rc" type="range" min="-100" max="-20" value="-75"></label>
-  <div class="row"><button id="send">テストRSSI送信</button><button id="black">画面消灯</button></div>
-  <p><small>実機BLE受信はAndroid側から <span style="font-family:monospace">window.SabaePixCellEarth.pushRssi(A,B,C,measurementId,scanMonoMs)</span> を呼び出す構成です。個人識別用の端末固有IDは使用せず、このページを開いている間だけのランダムIDを使います。</small></p>
+  <h1>Sabae Pixcell クライアントアプリ</h1>
+  <div class="sub">西山公園 芝生広場 GPS発光用</div>
+  <label>ホストアプリ WebSocket URL<input id="wsUrl" value="ws://192.168.1.100:8765/device"></label>
+  <label>公開デモの演出<select id="demoEffect"><option value="wave">波（奥→手前）</option><option value="ripple">波紋</option><option value="fireworks">花火</option></select></label>
+  <label class="check"><input id="demoMode" type="checkbox">公開デモモード（ホスト接続なしで演出確認）</label>
+  <label class="check"><input id="centerMode" type="checkbox">開発用：芝生広場の中心座標を使用</label>
+  <div class="row"><button id="reconnect">ホストへ再接続</button><button id="closeSettings">設定を閉じる</button></div>
+  <div class="note">実運用版はAndroidアプリとしてGPSを取得し、西山公園の演出範囲内にいる端末だけがホストアプリと同期して発光します。このWeb版は同じ範囲判定・演出計算を確認できる提出用デモです。</div>
 </div>
 <script>
-(()=>{
-'use strict';const $=id=>document.getElementById(id);
-const E={light:$('light'),conn:$('conn'),idBadge:$('idBadge'),gear:$('gear'),bottom:$('bottom'),settings:$('settings'),url:$('url'),connect:$('connect'),close:$('close'),ra:$('ra'),rb:$('rb'),rc:$('rc'),send:$('send'),black:$('black'),a:$('a'),b:$('b'),c:$('c'),delay:$('delay'),seq:$('seq')};
-const sessionId='EARTH-'+crypto.getRandomValues(new Uint32Array(2)).reduce((s,n)=>s+n.toString(36),'').slice(0,12).toUpperCase();
-E.idBadge.textContent=sessionId;let ws=null,seq=0,lastMeasurements=new Map();
-function connect(){try{ws&&ws.close()}catch(_){};try{ws=new WebSocket(E.url.value.trim());ws.onopen=()=>{E.conn.textContent='Sun: 接続済み';send({type:'device-hello',protocol:'sabae-pixcell/1',source:'earth',deviceId:sessionId,appVersion:'001',os:navigator.userAgent.includes('Android')?'Android':'Other'});E.settings.classList.remove('open')};ws.onclose=()=>E.conn.textContent='Sun: 未接続';ws.onerror=()=>E.conn.textContent='Sun: エラー';ws.onmessage=e=>onCommand(e.data)}catch(err){E.conn.textContent='Sun: 接続失敗'}}
-function send(o){if(ws&&ws.readyState===WebSocket.OPEN)ws.send(JSON.stringify(o))}
-function pushRssi(A,B,C,measurementId,scanMonoMs){
-  const mid=measurementId||`${sessionId}:${++seq}`;const localStart=performance.now();lastMeasurements.set(mid,localStart);
-  E.a.textContent=A;E.b.textContent=B;E.c.textContent=C;E.seq.textContent='seq '+seq;
-  send({type:'pixcell-rssi',protocol:'sabae-pixcell/1',source:'earth',deviceId:sessionId,seq,measurementId:mid,clientTimeMs:Date.now(),rssi:{A:+A,B:+B,C:+C}});
-}
-function setColor(color,measurementId){
-  E.light.style.backgroundColor=color||'#000';
-  const start=measurementId&&lastMeasurements.get(measurementId);
-  if(start!=null){const d=performance.now()-start;E.delay.textContent=d.toFixed(1)+' ms';lastMeasurements.delete(measurementId)}
-}
-function onCommand(raw){let m;try{m=JSON.parse(raw)}catch(_){return};if(m.type!=='sun-command')return;
-  if(m.command==='color')setColor(m.color||'#000',m.measurementId);
-  if(m.command==='flash'){const before=E.light.style.backgroundColor||'#000';setColor(m.color||'#fff',m.measurementId);setTimeout(()=>E.light.style.backgroundColor=before,Math.max(10,+m.durationMs||200))}
-}
-window.SabaePixCellEarth={pushRssi,setColor,sessionId};
-E.gear.onclick=()=>E.settings.classList.add('open');E.close.onclick=()=>E.settings.classList.remove('open');E.connect.onclick=connect;E.send.onclick=()=>pushRssi(+E.ra.value,+E.rb.value,+E.rc.value);E.black.onclick=()=>setColor('#000');
-window.addEventListener('beforeunload',()=>{try{ws&&ws.close()}catch(_){}});E.settings.classList.add('open');
+(function(){
+'use strict';
+var PROTOCOL='sabae-pixcells-gps/1';
+var CENTER={lat:35.95059192374843,lon:136.18228854441105};
+var DIAM_EW=74.8384298607601,DIAM_NS=67.99156956772975;
+var BOUNDARY=[
+[136.18214340925533,35.95089007243352],[136.18222630907874,35.950897311682176],[136.1823091997713,35.9508960178019],[136.1823996182736,35.95088740300548],[136.1824824907046,35.95086904286733],[136.18255781706426,35.95084093738745],[136.18261806041218,35.95080187435304],[136.18266020779828,35.95075307550477],[136.18269028512265,35.95069209736131],[136.18270377752557,35.95062503909812],[136.18270219865636,35.95055799444618],[136.18268705564216,35.95049096204436],[136.18265986865424,35.95043613071573],[136.18262063377938,35.95038984340504],[136.18256935232196,35.9503533191307],[136.18250903723202,35.95032533615204],[136.1824396872052,35.950304675450646],[136.18236130224147,35.95029133702652],[136.1822784050269,35.9502865358147],[136.1821955169431,35.950290267731816],[136.18212017232182,35.950301306953826],[136.1820523724674,35.95032087249915],[136.18199664137035,35.950351398321246],[136.1819514666858,35.950388009707574],[136.181918355541,35.950430705296995],[136.18189580080875,35.95047948645064],[136.18188078823457,35.95053435589076],[136.1818733112965,35.95058921852526],[136.18187638424894,35.95064407163188],[136.18188849996469,35.95069891657175],[136.18190965192176,35.95074765825278],[136.1819398427289,35.950792734711804],[136.18197906847297,35.950830488893565],[136.1820243122907,35.95085848548347],[136.18207858974097,35.95087794077769],[136.18214340925533,35.95089007243352]
+];
+var $=function(id){return document.getElementById(id)};
+var E={light:$('light'),host:$('hostStatus'),mode:$('modeStatus'),msg:$('message'),bottom:$('bottom'),gear:$('gear'),start:$('start'),settings:$('settings'),wsUrl:$('wsUrl'),demoEffect:$('demoEffect'),demoMode:$('demoMode'),centerMode:$('centerMode'),reconnect:$('reconnect'),close:$('closeSettings')};
+var ws=null,watchId=null,active=false,inside=false,locationKnown=false,lat=0,lon=0,accuracy=9999,x=0,y=0,serverOffset=0,checkInterval=1000,currentBlock=null,nextBlock=null,lastRevision=0,lastSend=0,demoStarted=0;
+var deviceId='CLIENT-'+Math.random().toString(36).slice(2,10).toUpperCase();
+
+function contains(la,lo){var hit=false,j=BOUNDARY.length-1;for(var i=0;i<BOUNDARY.length;i++){var xi=BOUNDARY[i][0],yi=BOUNDARY[i][1],xj=BOUNDARY[j][0],yj=BOUNDARY[j][1];var cross=((yi>la)!=(yj>la))&&(lo<(xj-xi)*(la-yi)/((yj-yi)||1e-15)+xi);if(cross)hit=!hit;j=i}return hit}
+function localMeters(la,lo){return{x:(lo-CENTER.lon)*111320*Math.cos(CENTER.lat*Math.PI/180),y:(la-CENTER.lat)*111320}}
+function setLocation(la,lo,acc){lat=la;lon=lo;accuracy=acc||0;var p=localMeters(lat,lon);x=p.x;y=p.y;locationKnown=true;inside=contains(lat,lon);E.mode.textContent=inside?'演出範囲内':'演出範囲外';E.mode.className='badge '+(inside?'good':'bad');E.bottom.textContent='GPS '+lat.toFixed(7)+', '+lon.toFixed(7)+' / 精度 '+Number(accuracy).toFixed(1)+'m / x '+x.toFixed(2)+'m / y '+y.toFixed(2)+'m'+(E.centerMode.checked?' / 開発用中心座標':'');if(active&&!inside){disconnect();E.msg.textContent='演出範囲外です'}else if(active&&inside&&!E.demoMode.checked){connect()}}
+function updatePosition(){if(E.centerMode.checked){setLocation(CENTER.lat,CENTER.lon,.5);return}if(!navigator.geolocation){E.msg.textContent='このブラウザではGPSを利用できません';return}if(watchId!=null)return;watchId=navigator.geolocation.watchPosition(function(p){setLocation(p.coords.latitude,p.coords.longitude,p.coords.accuracy)},function(e){E.msg.textContent='GPS取得エラー: '+e.message},{enableHighAccuracy:true,maximumAge:1000,timeout:10000})}
+function start(){active=true;E.start.style.display='none';E.msg.textContent='GPS取得中…';updatePosition();if(E.demoMode.checked)startDemo()}
+function disconnect(){try{if(ws)ws.close()}catch(_e){}ws=null;E.host.textContent='ホストアプリ: 未接続';E.host.className='badge'}
+function connect(){if(!active||!inside||E.demoMode.checked||ws&&ws.readyState<=1)return;var url=E.wsUrl.value.trim();if(!url)return;try{ws=new WebSocket(url);E.host.textContent='ホストアプリ: 接続中…';ws.onopen=function(){E.host.textContent='ホストアプリ: 接続済み';E.host.className='badge good';sendHello()};ws.onclose=function(){ws=null;E.host.textContent='ホストアプリ: 再接続中…';E.host.className='badge warn'};ws.onerror=function(){E.host.textContent='ホストアプリ: 接続エラー';E.host.className='badge bad'};ws.onmessage=function(ev){handleState(ev.data)}}catch(e){E.host.textContent='ホストアプリ: 接続不可';E.host.className='badge bad'}}
+function send(o){if(ws&&ws.readyState===1)ws.send(JSON.stringify(o))}
+function base(type){return{type:type,protocol:PROTOCOL,source:'earth',app:'Earth',deviceId:deviceId,lat:lat,lon:lon,accuracyM:accuracy,clientSendMs:Date.now(),debugCenter:E.centerMode.checked}}
+function sendHello(){send(base('hello'))}
+function sendStatus(){var o=base('status');o.seq=Math.floor(Date.now()/100);o.lastRevision=lastRevision;send(o)}
+function handleState(raw){var m;try{m=JSON.parse(raw)}catch(_e){return}if(m.type!=='sun-state'||m.protocol!==PROTOCOL)return;var recv=Date.now(),server=Number(m.serverTimeMs||recv);if(m.echoClientSendMs){var candidate=server-(Number(m.echoClientSendMs)+recv)/2;serverOffset=serverOffset*.8+candidate*.2}else serverOffset=server-recv;checkInterval=Math.max(200,Math.min(10000,Number(m.checkIntervalMs||1000)));lastRevision=Number(m.configRevision||lastRevision);if(!m.running){currentBlock=null;nextBlock=null;E.light.style.background='#000';E.msg.textContent='ホストアプリ停止中';return}var sn=serverNow();if(m.phase==='running'&&m.currentSegmentStartMs!=null){currentBlock={effectId:m.effectId||'wave',startMs:Number(m.currentSegmentStartMs),endMs:Number(m.currentSegmentEndMs),elapsed:Number(m.currentSegmentStartSec||0),revision:Number(m.activeRevision||0)}}if(m.nextBoundaryMs){nextBlock={effectId:m.nextEffectId||m.effectId||'wave',startMs:Number(m.nextBoundaryMs),endMs:Number(m.nextBoundaryMs)+Number(m.segmentDurationMs||5000),elapsed:Number(m.nextEffectElapsedStartSec||0),revision:Number(m.nextActiveRevision||m.activeRevision||0)}}E.host.textContent='ホストアプリ: 接続済み / '+(m.effectName||m.effectId||'演出');E.host.className='badge good'}
+function serverNow(){return Date.now()+serverOffset}
+function startDemo(){demoStarted=Date.now()+800;currentBlock={effectId:E.demoEffect.value,startMs:demoStarted,endMs:demoStarted+3600000,elapsed:0,revision:1};nextBlock=null;E.host.textContent='公開デモモード';E.host.className='badge warn'}
+function clamp(v,a,b){return Math.max(a,Math.min(b,v))}
+function mix(a,b,t){t=clamp(t,0,1);return Math.round(a+(b-a)*t)}
+function rgb(a,b,c){return 'rgb('+a+','+b+','+c+')'}
+function smooth01(t){t=clamp(t,0,1);return t*t*(3-2*t)}
+function color(effect,e){var A=DIAM_EW/2,B=DIAM_NS/2,p={x:x,y:y,id:1};if(effect==='wave'){var yn=clamp(p.y/B,-.999,.999),edge=A*Math.sqrt(Math.max(0,1-yn*yn)),west=-edge,east=edge,width=Math.max(1,east-west),coast=west+width*.17,span=Math.max(1,east-coast),t=(p.x-coast)/span,q=(((e%8.8)+8.8)%8.8)/8.8,sand=clamp((coast-p.x)/Math.max(1,coast-west),0,1),water=0,foam=0,impact=0,retreat=0;if(q<.68){var aa=smooth01(q/.68),front=.92-.90*aa,d=t-front,crest=Math.exp(-Math.pow(d/.025,2)),body=.56*Math.exp(-Math.pow((d+.085)/.085,2))+.28*Math.exp(-Math.pow((d+.20)/.15,2));impact=clamp((.13-front)/.13,0,1);water=clamp(body+crest*.55,0,1);foam=clamp(crest*(.20+.92*impact),0,1)}else{var rr=smooth01((q-.68)/.32),front2=.02+.58*rr,d2=t-front2,crest2=Math.exp(-Math.pow(d2/.03,2));retreat=Math.sin(rr*Math.PI)*.95;water=clamp(.48*crest2+.34*Math.exp(-Math.pow((d2-.11)/.075,2)),0,1);foam=clamp(.35*crest2*retreat,0,1)}if(p.x<coast){var shore=Math.exp(-Math.pow(sand/.58,2)),wash=clamp((impact*.92+retreat*.58)*shore,0,1),wet=clamp((impact*.45+retreat*.72)*Math.exp(-Math.pow(sand/.85,2)),0,1),base=[105,78,41],dry=[198,164,104],wetc=[82,71,57],white=[235,248,252],c=[mix(base[0],dry[0],.46),mix(base[1],dry[1],.46),mix(base[2],dry[2],.46)];c=[mix(c[0],wetc[0],wet),mix(c[1],wetc[1],wet),mix(c[2],wetc[2],wet)];c=[mix(c[0],white[0],wash*.8),mix(c[1],white[1],wash*.8),mix(c[2],white[2],wash*.8)];return rgb(c[0],c[1],c[2])}var deep=clamp(t,0,1),k=clamp(.05+.48*water+.12*(1-deep),0,1),c2=[mix(0,24,k),mix(10,132,k),mix(30,190,k)];c2=[mix(c2[0],150,foam*.68),mix(c2[1],225,foam*.68),mix(c2[2],248,foam*.68)];return rgb(c2[0],c2[1],c2[2])}
+if(effect==='ripple'){var origins=[[-14,11],[13,12],[18,-7],[-9,-14],[7,17],[-19,-3],[0,0],[15,3],[-4,-18]],cycle=5.2,best=0,now=Math.floor(e/cycle),tint=0;for(var back=0;back<2;back++){var idx=now-back;if(idx<0)continue;var age=e-idx*cycle;if(age<0||age>6)continue;var o=origins[((idx%origins.length)+origins.length)%origins.length],dist=Math.hypot(p.x-o[0],p.y-o[1]),radius=age*7.2,ring=Math.exp(-Math.pow((dist-radius)/1.1,2));if(radius>5)ring=Math.max(ring,.72*Math.exp(-Math.pow((dist-(radius-5))/1.28,2)));if(ring>best){best=ring;tint=idx%3}}var cols=[[65,220,255],[84,190,255],[120,225,255]],co=cols[(tint+3)%3];return rgb(mix(0,co[0],best),mix(4,co[1],best),mix(18,co[2],best))}
+if(effect==='fireworks'){var sn=.17364817766693033,centers=[[1,-24],[1,-16],[1,-8],[1,0],[1,8],[1,16],[1,24],[1,-20],[1,20],[1,0]],cols2=[[255,80,55],[80,165,255],[255,205,55],[220,90,255],[80,255,175],[255,125,45],[245,245,255],[255,65,145]],spacing=.88,kNow=Math.floor(e/spacing),R=0,G=0,BL=0;for(var dk=0;dk<4;dk++){var kk=kNow-dk;if(kk<0)continue;var ag=e-kk*spacing;if(ag<0||ag>2.15)continue;var cc=centers[kk%centers.length],cl=cols2[kk%cols2.length],dx=(p.x-cc[0])*sn,dy=p.y-cc[1],dist2=Math.hypot(dx,dy),ang=Math.atan2(dy,dx),rad=.7+ag*3,w=.34+ag*.13,fade=clamp(1-ag/2.15,0,1),ring2=Math.exp(-Math.pow((dist2-rad)/w,2)),petal=.32+.88*Math.pow(Math.abs(Math.cos(6*(ang-(kk*1.618)%6.283185307))),8),amp=clamp(ring2*petal*fade*1.24,0,1);R+=cl[0]*amp;G+=cl[1]*amp;BL+=cl[2]*amp}return rgb(clamp(Math.round(R),0,255),clamp(Math.round(G),0,255),clamp(Math.round(BL),0,255))}
+return '#000'}
+function render(){if(!active){E.light.style.background='#000';return}if(!locationKnown){E.light.style.background='#000';E.msg.textContent='GPS取得中…';return}if(!inside){E.light.style.background='#000';E.msg.textContent='演出範囲外です';return}var now=E.demoMode.checked?Date.now():serverNow();if(currentBlock&&now>=currentBlock.endMs)currentBlock=null;if(!currentBlock&&nextBlock&&now>=nextBlock.startMs){currentBlock=nextBlock;nextBlock=null}if(currentBlock&&now>=currentBlock.startMs&&now<currentBlock.endMs){var elapsed=currentBlock.elapsed+(now-currentBlock.startMs)/1000;E.light.style.background=color(currentBlock.effectId,elapsed);E.msg.textContent='';return}E.light.style.background='#000';E.msg.textContent=E.demoMode.checked?'演出開始待機':'ホストアプリ情報待機'}
+setInterval(function(){render();if(active&&inside&&!E.demoMode.checked){if(!ws)connect();if(ws&&ws.readyState===1&&Date.now()-lastSend>=checkInterval){lastSend=Date.now();sendStatus()}}},50);
+E.gear.onclick=function(){E.settings.classList.add('open')};
+E.close.onclick=function(){E.settings.classList.remove('open');if(E.centerMode.checked)setLocation(CENTER.lat,CENTER.lon,.5);if(E.demoMode.checked&&active)startDemo()};
+E.start.onclick=start;
+E.reconnect.onclick=function(){disconnect();if(active&&inside&&!E.demoMode.checked)connect()};
+E.centerMode.onchange=function(){if(E.centerMode.checked)setLocation(CENTER.lat,CENTER.lon,.5);else{locationKnown=false;if(watchId!=null){navigator.geolocation.clearWatch(watchId);watchId=null}if(active)updatePosition()}};
+E.demoMode.onchange=function(){disconnect();if(E.demoMode.checked&&active)startDemo();else if(active&&inside)connect()};
+E.demoEffect.onchange=function(){if(E.demoMode.checked&&active)startDemo()};
+if(location.hostname.endsWith('github.io')){E.demoMode.checked=true;E.centerMode.checked=true;E.mode.textContent='公開デモ';}
 })();
-</script></body></html>
+</script>
+</body>
+</html>
